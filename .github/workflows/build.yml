@@ -219,10 +219,11 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
-      - name: Generate CI release keystore from Android debug keystore
+      - name: Provide CI release keystore
         run: |
-          gradle :app:validateSigningDebug --stacktrace
-          cp "$HOME/.android/debug.keystore" my-upload-key.jks
+          DEBUG_KEYSTORE="$(find "$HOME" "$ANDROID_HOME" -type f -name debug.keystore -print -quit 2>/dev/null)"
+          test -n "$DEBUG_KEYSTORE"
+          cp "$DEBUG_KEYSTORE" my-upload-key.jks
 
       - name: Build and lint
         run: gradle clean lintDebug assembleDebug assembleRelease --stacktrace
