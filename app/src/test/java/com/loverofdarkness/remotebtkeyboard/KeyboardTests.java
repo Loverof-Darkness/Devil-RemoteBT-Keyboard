@@ -46,9 +46,24 @@ public final class KeyboardTests {
 
     @Test public void editPlanReplacement(){
         EditPlan p=new EditPlan("Hello","Help");
-        assertEquals(1,p.deletes);
+        assertEquals(2,p.deletes);
         assertEquals(3,p.index);
         assertEquals("Help",p.target);
         assertFalse(p.done());
+    }
+
+    @Test public void editPlanEmptyTarget(){
+        EditPlan p=new EditPlan("abc","");
+        assertEquals(3,p.deletes);
+        assertEquals(0,p.index);
+        assertTrue(p.target.isEmpty());
+        assertFalse(p.done());
+    }
+
+    @Test public void editPlanAlreadySynchronized(){
+        EditPlan p=new EditPlan("same","same");
+        assertEquals(0,p.deletes);
+        assertEquals(4,p.index);
+        assertTrue(p.done());
     }
 }
