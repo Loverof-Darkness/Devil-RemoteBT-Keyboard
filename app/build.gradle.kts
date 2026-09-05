@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-  namespace = "dev.arnv.bluke"
+  namespace = "com.loverofdarkness.devilremotekeyboard"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "dev.arnv.bluke"
+    applicationId = "com.loverofdarkness.devilremotekeyboard"
     minSdk = 28
     targetSdk = 36
     versionCode = 9
@@ -77,13 +77,10 @@ android {
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
   dependenciesInfo {
-    // Disables dependency metadata when building APKs.
     includeInApk = false
-    // Disables dependency metadata when building Android App Bundles.
     includeInBundle = false
   }
 }
-
 
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
@@ -118,11 +115,8 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
-
-
 kotlin {
   compilerOptions {
     jvmTarget = JvmTarget.JVM_17
   }
 }
-
