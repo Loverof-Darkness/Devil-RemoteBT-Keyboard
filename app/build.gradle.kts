@@ -16,7 +16,16 @@ android {
     }
 
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            // Match the reference app's production optimization strategy:
+            // R8 removes unreachable code and unused library resources.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     compileOptions {
@@ -30,6 +39,12 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
     }
+
+    // Do not package Gradle dependency metadata into the APK/AAB.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 dependencies {
@@ -42,7 +57,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.kotlinx.coroutines.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
