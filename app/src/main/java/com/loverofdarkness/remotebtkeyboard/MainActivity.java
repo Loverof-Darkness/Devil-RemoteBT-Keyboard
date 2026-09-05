@@ -4,11 +4,9 @@ import android.Manifest;
 import android.app.*;
 import android.content.*;
 import android.content.pm.PackageManager;
-import android.graphics.Rect;
 import android.os.*;
 import android.provider.Settings;
 import android.view.*;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import java.util.function.Consumer;
 
@@ -55,7 +53,7 @@ public final class MainActivity extends Activity {
         root.setPadding(dp(12),dp(10),dp(12),baseBottomPadding);
         setContentView(root);
 
-        if(Build.VERSION.SDK_INT>=23){
+        if(Build.VERSION.SDK_INT>=30){
             root.setOnApplyWindowInsetsListener((v,insets)->{
                 int imeBottom=insets.getInsets(WindowInsets.Type.ime()).bottom;
                 int navBottom=insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
@@ -93,7 +91,6 @@ public final class MainActivity extends Activity {
         editor.setInputType(0x00004001|0x00020000);
         editor.setImeOptions(0x00000006);
         editor.setPadding(dp(12),dp(10),dp(12),dp(10));
-        editor.setOnFocusChangeListener((v,hasFocus)->{if(hasFocus)root.postDelayed(()->{root.requestApplyInsets();editor.getGlobalVisibleRect(new Rect());},100);});
         editor.addTextChangedListener(new android.text.TextWatcher(){
             public void beforeTextChanged(CharSequence s,int st,int c,int a){}
             public void onTextChanged(CharSequence s,int st,int b,int c){if(service!=null&&service.controller()!=null)service.controller().setDraft(s.toString());}
@@ -159,9 +156,10 @@ public final class MainActivity extends Activity {
         live.setEnabled(!s.busy);
         send.setText(s.live?"Send Buffer":"Send Buffer (use composer text)");
         if(!s.draft.equals(editor.getText().toString())){
-            int end=Math.min(editor.getSelectionStart()<0?editor.length():editor.getSelectionStart(),s.draft.length());
+            int start=editor.getSelectionStart();
+            int pos=start<0?editor.length():Math.min(start,s.draft.length());
             editor.setText(s.draft);
-            editor.setSelection(Math.max(0,Math.min(end,editor.length())));
+            editor.setSelection(Math.max(0,Math.min(pos,editor.length())));
         }
     }
 
