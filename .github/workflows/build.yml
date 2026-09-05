@@ -20,8 +20,10 @@ jobs:
           fetch-depth: 0
 
       - name: Sync exact Bluke baseline once
-        if: ${{ !contains(github.event.head_commit.message, 'sync: apply Bluke baseline') }}
         run: |
+          if [ "$(git log -1 --pretty=%s)" = "sync: apply Bluke baseline with native IME" ]; then
+            exit 0
+          fi
           curl -L --fail --retry 3 https://github.com/arnav-kr/Bluke/archive/refs/heads/main.tar.gz -o /tmp/bluke.tar.gz
           mkdir /tmp/bluke
           tar -xzf /tmp/bluke.tar.gz -C /tmp/bluke --strip-components=1
