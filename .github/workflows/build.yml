@@ -1,0 +1,75 @@
+name: Build Android
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Check project state
+        id: project
+        shell: bash
+        run: |
+          if [[ -f ./gradlew && -d ./app ]]; then
+            echo "android_project=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android_project=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Make Gradle wrapper executable
+        if: steps.project.outputs.android_project == 'true'
+        run: chmod +x ./gradlew
+
+      - name: Build and test
+        if: steps.project.outputs.android_project == 'true'
+        run: ./gradlew clean test assembleDebug assembleRelease --stacktrace
+
+      - name: Create foundation artifact
+        if: steps.project.outputs.android_project == 'false'
+        shell: bash
+        run: |
+          mkdir -p build-artifacts
+          cat > build-artifacts/FOUNDATION.md <<'EOF'
+          Devil RemoteBT Keyboard is currently in the pre-implementation foundation phase.
+
+          The Android project will be added after Astra 6.1 architecture review.
+          Once app/ and gradlew exist, this workflow automatically switches to Android build/test mode.
+          EOF
+
+      - name: Upload Android APKs
+        if: steps.project.outputs.android_project == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: devil-remotebt-keyboard-apks-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/mapping/release/**
+
+      - name: Upload foundation artifact
+        if: steps.project.outputs.android_project == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: devil-remotebt-keyboard-foundation-${{ github.sha }}
+          if-no-files-found: error
+          path: build-artifacts/FOUNDATION.md
