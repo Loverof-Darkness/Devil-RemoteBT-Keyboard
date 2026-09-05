@@ -15,6 +15,10 @@ import java.util.function.Consumer;
 public final class HidController implements BluetoothProfile.ServiceListener {
     public enum State { IDLE, SEARCHING, SELECTED, REGISTERING, CONNECTING, CONNECTED, DISCONNECTING, DISCONNECTED, ERROR }
 
+    private static final long HID_CONNECT_TIMEOUT_MS = 30000L;
+    private static final long HID_CONNECT_POLL_MS = 500L;
+    private static final int HID_CONNECT_MAX_POLLS = (int)(HID_CONNECT_TIMEOUT_MS / HID_CONNECT_POLL_MS);
+
     public static final class DeviceRow {
         public final String address, name;
         DeviceRow(BluetoothDevice d) { address = d.getAddress(); name = safeName(d); }
@@ -68,10 +72,8 @@ public final class HidController implements BluetoothProfile.ServiceListener {
                     else { message = "HID registration stopped."; publish(); }
                     return;
                 }
-                // pluggedDevice is registration status context, not proof of a live HID cable.
-                // Only onConnectionStateChanged(STATE_CONNECTED) may set connected=true.
                 state = wanted ? State.REGISTERING : State.DISCONNECTED;
-                message = wanted ? "HID registered. Waiting to connect to the selected laptop…" : "HID registered.";
+                message = wanted ? "HID registered. Preparing the keyboard connection…" : "HID registered.";
                 publish();
                 if (wanted && selected != null) advance();
             });
@@ -184,7 +186,7 @@ public final class HidController implements BluetoothProfile.ServiceListener {
             acquire();
             refreshCandidates();
             state=selected==null?State.DISCONNECTED:State.SELECTED;
-            message=candidates.isEmpty()?"No paired Bluetooth devices found. Pair your laptop first.":"Select the target device, then press Connect.";
+            message=candidates.isEmpty()?"No paired Bluetooth devices found. Pair your laptop first.":"Select the target device, then connect as a keyboard.";
             publish();
         });
     }
@@ -218,28 +220,15 @@ public final class HidController implements BluetoothProfile.ServiceListener {
             BluetoothDevice d=candidates.get(address);
             if (d==null) { message="Device is no longer paired or available."; publish(); return; }
             selected=d; normalConnected=false;
-            state=State.SELECTED; message="Selected "+safeName(d)+". Press Connect."; publish();
+            state=State.SELECTED; message="Selected "+safeName(d)+". Ready to connect as a keyboard."; publish();
         });
     }
 
     public void connect() {
-        exec(() -> {
-            if (wanted || connected || disconnecting) return;
-            if (adapter==null || !adapter.isEnabled()) { message="Enable Bluetooth first."; publish(); return; }
-            if (selected==null) { message="Search and select a device first."; publish(); return; }
-            refreshCandidates();
-            BluetoothDevice d=candidates.get(selected.getAddress());
-            if (d==null) { message="Selected device is no longer paired or available."; publish(); return; }
-            selected=d;
-            if (selected.getBondState()!=BluetoothDevice.BOND_BONDED) { message="Device must be paired with this phone first."; publish(); return; }
-            // Public Android APIs do not provide a generic arbitrary classic-Bluetooth connect call.
-            // This action therefore means the user-selected target is ready for the normal Bluetooth
-            // connection flow; the actual keyboard cable is started separately by startHid/connectHid.
-            normalConnected = false;
-            state=State.SELECTED;
-            message="Selected "+safeName(selected)+". Use the Bluetooth settings Connect action if normal Bluetooth is not already connected, then press Start Keyboard HID.";
-            publish();
-        });
+        // Kept as the public entry point used by older callers. There is intentionally no
+        // generic ACL connect here: on Android 15/API 35 the public BluetoothDevice.connect()
+        // API does not exist. HID itself owns the profile connection to the paired host.
+        startHid();
     }
 
     public void startHid() {
@@ -253,13 +242,17 @@ public final class HidController implements BluetoothProfile.ServiceListener {
             selected=d;
             if (selected.getBondState()!=BluetoothDevice.BOND_BONDED) { message="Device must be paired with this phone first."; publish(); return; }
             wanted=true; disconnecting=false; connectPolls=0;
-            state=State.REGISTERING; message="Preparing HID keyboard registration…"; publish();
+            state=State.REGISTERING; message="Preparing phone as a Bluetooth HID keyboard…"; publish();
             acquire(); advance();
-            later(30000, () -> { if (wanted && !connected) fail("HID connection timed out. Check laptop Bluetooth HID/input support and try again."); });
+            later(HID_CONNECT_TIMEOUT_MS, () -> {
+                if (wanted && !connected) {
+                    int s = hid == null || selected == null ? BluetoothProfile.STATE_DISCONNECTED : hid.getConnectionState(selected);
+                    fail("HID keyboard connection timed out after 30 seconds (state="+profileStateName(s)+"). Check that the laptop is paired and its Bluetooth HID/input profile is available.");
+                }
+            });
         });
     }
 
-    // Kept for source compatibility with the previous UI/controller API.
     public void connectHid() { startHid(); }
 
     private void advance() {
@@ -279,7 +272,24 @@ public final class HidController implements BluetoothProfile.ServiceListener {
 
     private void startHostConnect() {
         if (!wanted || selected==null || hid==null || connected) return;
-        state=State.CONNECTING; message="HID registered. Connecting to "+safeName(selected)+"…"; publish();
+
+        int current;
+        try { current=hid.getConnectionState(selected); }
+        catch (RuntimeException e) { fail("Could not read the HID connection state: "+e.getMessage()); return; }
+
+        if (current==BluetoothProfile.STATE_CONNECTED) {
+            handleConnection(selected, current);
+            return;
+        }
+        if (current==BluetoothProfile.STATE_CONNECTING) {
+            state=State.CONNECTING; message="HID keyboard connection is already in progress…"; publish();
+            connectPolls=0;
+            pollConnection();
+            return;
+        }
+
+        state=State.CONNECTING; message="HID registered. Connecting to "+safeName(selected)+" as a keyboard…"; publish();
+        connectPolls=0;
         boolean accepted=hid.connect(selected);
         if (!accepted) { fail("Android rejected the HID connection request. Make sure the laptop is paired and supports Bluetooth HID."); return; }
         pollConnection();
@@ -289,9 +299,23 @@ public final class HidController implements BluetoothProfile.ServiceListener {
         if (!wanted || connected || hid==null || selected==null) return;
         int s=hid.getConnectionState(selected);
         if (s==BluetoothProfile.STATE_CONNECTED) { handleConnection(selected,s); return; }
-        if (s==BluetoothProfile.STATE_CONNECTING) { state=State.CONNECTING; message="HID connection in progress…"; publish(); }
-        if (++connectPolls<20) later(500,this::pollConnection);
-        else if (wanted&&!connected) fail("Laptop did not accept the HID keyboard connection.");
+        if (s==BluetoothProfile.STATE_CONNECTING || s==BluetoothProfile.STATE_DISCONNECTING) {
+            state=State.CONNECTING;
+            message="HID keyboard connection in progress…";
+            publish();
+        }
+        if (++connectPolls < HID_CONNECT_MAX_POLLS) {
+            later(HID_CONNECT_POLL_MS,this::pollConnection);
+        } else if (wanted&&!connected) {
+            fail("No HID keyboard connection was established within 30 seconds. The request was sent, but the laptop did not complete the HID profile connection.");
+        }
+    }
+
+    private static String profileStateName(int s) {
+        if (s==BluetoothProfile.STATE_CONNECTED) return "CONNECTED";
+        if (s==BluetoothProfile.STATE_CONNECTING) return "CONNECTING";
+        if (s==BluetoothProfile.STATE_DISCONNECTING) return "DISCONNECTING";
+        return "DISCONNECTED";
     }
 
     private void handleConnection(BluetoothDevice d, int s) {
@@ -303,8 +327,13 @@ public final class HidController implements BluetoothProfile.ServiceListener {
         else if (s==BluetoothProfile.STATE_CONNECTED) {
             if (connected) return;
             host=d; connected=true; wanted=true; epoch++; remote=""; draft=""; plan=null;
-            state=State.CONNECTED; message="HID CONNECTED. Ready to type."; publish();
-        } else if (s==BluetoothProfile.STATE_DISCONNECTED && connected) loss("HID connection to laptop was lost.");
+            state=State.CONNECTED; message="HID keyboard CONNECTED. Ready to type."; publish();
+        } else if (s==BluetoothProfile.STATE_DISCONNECTED && connected) loss("HID keyboard connection to laptop was lost.");
+        else if ((s==BluetoothProfile.STATE_DISCONNECTED || s==BluetoothProfile.STATE_DISCONNECTING) && wanted && !connected) {
+            state=State.CONNECTING;
+            message="Laptop has not completed the HID keyboard connection yet. Retrying until the 30-second timeout…";
+            publish();
+        }
     }
 
     public void disconnect() {
@@ -312,14 +341,14 @@ public final class HidController implements BluetoothProfile.ServiceListener {
             wanted=false; disconnecting=true; epoch++; cancelInput(); modifiers=0;
             BluetoothDevice d=host!=null?host:selected;
             if (hid!=null && d!=null && registered) { try { hid.disconnect(d); } catch(Exception ignored) { } }
-            connected=false; host=null; state=State.DISCONNECTING; message="Disconnecting HID…"; publish();
+            connected=false; host=null; state=State.DISCONNECTING; message="Disconnecting HID keyboard…"; publish();
             later(1200,this::finishDisconnect);
         });
     }
 
     private void finishDisconnect() {
         if (!disconnecting) return;
-        disconnecting=false; unregister(); state=State.DISCONNECTED; message="HID disconnected."; publish();
+        disconnecting=false; unregister(); state=State.DISCONNECTED; message="HID keyboard disconnected."; publish();
     }
 
     private void unregister() {
