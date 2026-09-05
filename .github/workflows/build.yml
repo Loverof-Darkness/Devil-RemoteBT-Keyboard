@@ -19,85 +19,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Sync exact Bluke baseline once
+      - name: Fix native HID text pacing
         run: |
-          # Once the project has been renamed to its final package, never re-sync the
-          # upstream tree again. This keeps future commits on our fork intact.
-          if [ -f "app/src/main/java/com/loverofdarkness/devilremotekeyboard/MainActivity.kt" ]; then
-            exit 0
-          fi
-
-          curl -L --fail --retry 3 https://github.com/arnav-kr/Bluke/archive/refs/heads/main.tar.gz -o /tmp/bluke.tar.gz
-          mkdir /tmp/bluke
-          tar -xzf /tmp/bluke.tar.gz -C /tmp/bluke --strip-components=1
-          rsync -a --delete --exclude='.git/' --exclude='.github/workflows/' /tmp/bluke/ ./
-
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          old_pkg = 'dev.arnv.bluke'
-          new_pkg = 'com.loverofdarkness.devilremotekeyboard'
-
-          # Keep the complete Bluke implementation, but make the package identity ours.
-          text_extensions = {'.kt', '.kts', '.xml', '.gradle', '.properties', '.pro', '.md', '.txt'}
-          for path in Path('.').rglob('*'):
-              if not path.is_file() or '.git' in path.parts or path.suffix not in text_extensions:
-                  continue
-              try:
-                  text = path.read_text()
-              except UnicodeDecodeError:
-                  continue
-              updated = text.replace(old_pkg, new_pkg)
-              if path.name == 'strings.xml':
-                  updated = updated.replace('<string name="app_name">Bluke</string>', '<string name="app_name">DevilRemoteKeyboard</string>')
-              if path.name == 'settings.gradle.kts':
-                  updated = updated.replace('rootProject.name = "Bluke"', 'rootProject.name = "DevilRemoteKeyboard"')
-              if updated != text:
-                  path.write_text(updated)
-
-          old_dir = Path('app/src/main/java') / Path(old_pkg.replace('.', '/'))
-          new_dir = Path('app/src/main/java') / Path(new_pkg.replace('.', '/'))
-          if old_dir.exists():
-              new_dir.parent.mkdir(parents=True, exist_ok=True)
-              old_dir.rename(new_dir)
-
-          gradle = Path('app/build.gradle.kts')
-          text = gradle.read_text()
-          text = text.replace('namespace = "dev.arnv.bluke"', f'namespace = "{new_pkg}"')
-          text = text.replace('applicationId = "dev.arnv.bluke"', f'applicationId = "{new_pkg}"')
-          gradle.write_text(text)
-
-          # Replace the upstream branding that is visible in the app without touching
-          # upstream URLs/repository references.
-          for rel in [
-              'app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/HomeScreen.kt',
-              'app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/NativeKeyboardInput.kt',
-          ]:
-              p = Path(rel)
-              if p.exists():
-                  p.write_text(p.read_text().replace('Bluke', 'DevilRemoteKeyboard'))
-          PY
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          manager = Path('app/src/main/java/com/loverofdarkness/devilremotekeyboard/bluetooth/BluetoothKeyboardManager.kt')
+          manager = Path('app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt')
           text = manager.read_text()
-          text = text.replace(
-              'import kotlinx.coroutines.flow.MutableSharedFlow\n',
-              'import kotlinx.coroutines.flow.MutableSharedFlow\nimport kotlinx.coroutines.sync.Mutex\nimport kotlinx.coroutines.sync.withLock\n'
-          )
 
-          # Serialize native text batches and pace the HID interrupt reports. The normal
-          # Bluke key path remains unchanged; only the added native text bridge gets pacing.
-          text = text.replace(
-              '    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>(',
-              '    private val nativeTextSendMutex = Mutex()\n\n    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>('
-          )
+          if 'private val nativeTextSendMutex' not in text:
+              marker = 'import kotlinx.coroutines.flow.MutableSharedFlow\n'
+              if marker not in text:
+                  raise SystemExit('MutableSharedFlow import marker not found')
+              text = text.replace(marker, marker + 'import kotlinx.coroutines.sync.Mutex\nimport kotlinx.coroutines.sync.withLock\n', 1)
 
-          start = text.find('    /** Extra native Android IME bridge. Bluke\'s original HID path remains unchanged. */')
+              marker = '    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>('
+              if marker not in text:
+                  raise SystemExit('connectionStateFlow marker not found')
+              text = text.replace(marker, '    private val nativeTextSendMutex = Mutex()\n\n' + marker, 1)
+
+          start = text.find('    /** Extra native Android IME bridge.')
           end = text.find('    fun close()', start)
           if start == -1 or end == -1:
               raise SystemExit('Native sendText block not found')
@@ -116,15 +58,15 @@ jobs:
                           for ((keyCode, shifted) in mappings) {
                               if (shifted) {
                                   sendKey(0xE1, true)
-                                  delay(6)
+                                  delay(8)
                               }
                               sendKey(keyCode, true)
-                              delay(6)
+                              delay(8)
                               sendKey(keyCode, false)
-                              delay(6)
+                              delay(8)
                               if (shifted) {
                                   sendKey(0xE1, false)
-                                  delay(6)
+                                  delay(8)
                               }
                           }
                       }
@@ -180,114 +122,19 @@ jobs:
           '''
           text = text[:start] + method + text[end:]
           manager.write_text(text)
-
-          ui = Path('app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/HomeScreen.kt')
-          text = ui.read_text()
-          malformed = re.compile(
-              r'\n\s*item\s*\{\s*NativeKeyboardInput\(\s*enabled\s*=\s*isConnected,\s*onSend\s*=\s*btManager::sendText\s*\)\s*\}\s*(?=contentPadding)'
-          )
-          text, removed = malformed.subn('\n', text, count=1)
-          if removed > 1:
-              raise SystemExit('Unexpected duplicate native input blocks')
-
-          header = re.compile(
-              r'(LazyColumn\(.*?verticalArrangement\s*=\s*Arrangement\.spacedBy\(16\.dp\)\s*\)\s*\{)',
-              re.DOTALL
-          )
-          replacement = r'''\1
-                            item {
-                                NativeKeyboardInput(
-                                    enabled = isConnected,
-                                    onSend = btManager::sendText
-                                )
-                            }'''
-          text, count = header.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit('Bluke HomeScreen LazyColumn header not found')
-          ui.write_text(text)
           PY
 
-          cat > app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/NativeKeyboardInput.kt <<'EOF'
-          package com.loverofdarkness.devilremotekeyboard.ui
-
-          import androidx.compose.foundation.layout.Arrangement
-          import androidx.compose.foundation.layout.Column
-          import androidx.compose.foundation.layout.fillMaxWidth
-          import androidx.compose.foundation.layout.padding
-          import androidx.compose.foundation.text.KeyboardActions
-          import androidx.compose.foundation.text.KeyboardOptions
-          import androidx.compose.material.icons.Icons
-          import androidx.compose.material.icons.automirrored.filled.Send
-          import androidx.compose.material3.Button
-          import androidx.compose.material3.Card
-          import androidx.compose.material3.Icon
-          import androidx.compose.material3.MaterialTheme
-          import androidx.compose.material3.OutlinedTextField
-          import androidx.compose.material3.Text
-          import androidx.compose.runtime.Composable
-          import androidx.compose.runtime.getValue
-          import androidx.compose.runtime.mutableStateOf
-          import androidx.compose.runtime.remember
-          import androidx.compose.runtime.setValue
-          import androidx.compose.ui.Modifier
-          import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-          import androidx.compose.ui.text.input.ImeAction
-          import androidx.compose.ui.text.input.KeyboardType
-          import androidx.compose.ui.unit.dp
-
-          @Composable
-          fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
-              var text by remember { mutableStateOf("") }
-              val keyboardController = LocalSoftwareKeyboardController.current
-              Card(modifier = Modifier.fillMaxWidth()) {
-                  Column(
-                      modifier = Modifier.padding(16.dp),
-                      verticalArrangement = Arrangement.spacedBy(10.dp)
-                  ) {
-                      Text("Native keyboard input", style = MaterialTheme.typography.titleLarge)
-                      Text(
-                          "Uses the phone's normal Android keyboard, including Gboard and voice input.",
-                          style = MaterialTheme.typography.bodyMedium
-                      )
-                      OutlinedTextField(
-                          value = text,
-                          onValueChange = { text = it },
-                          enabled = enabled,
-                          modifier = Modifier.fillMaxWidth(),
-                          minLines = 3,
-                          maxLines = 6,
-                          label = { Text("Type with your system keyboard") },
-                          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Send),
-                          keyboardActions = KeyboardActions(onSend = {
-                              if (text.isNotEmpty()) {
-                                  onSend(text)
-                                  text = ""
-                              }
-                              keyboardController?.hide()
-                          })
-                      )
-                      Button(
-                          enabled = enabled && text.isNotEmpty(),
-                          onClick = {
-                              onSend(text)
-                              text = ""
-                              keyboardController?.hide()
-                          },
-                          modifier = Modifier.fillMaxWidth()
-                      ) {
-                          Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
-                          Text("Send to computer", modifier = Modifier.padding(start = 8.dp))
-                      }
-                  }
-              }
-          }
-          EOF
-
+      - name: Commit native input fix
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "sync: apply Bluke baseline with DevilRemoteKeyboard identity and native IME fix" || true
-          git push || true
+          git add app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt
+          if git diff --cached --quiet; then
+            echo "No native input source changes to commit."
+          else
+            git commit -m "fix: pace native HID text reports"
+            git push
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
