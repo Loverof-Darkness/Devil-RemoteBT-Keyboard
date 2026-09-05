@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.KeyboardReturn
@@ -27,8 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardActions
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -57,7 +57,6 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
     fun selectMode(newMode: NativeInputMode) {
         mode = newMode
         prefs.edit().putString("native_input_mode", newMode.name).apply()
-        // A mode switch starts a fresh local editing session; it never re-sends old text.
         liveSourceText = text
     }
 
@@ -79,12 +78,10 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
 
         if (newText == oldText) return
 
-        // Normal typing at the end: transmit only the newly appended characters.
         if (newText.startsWith(oldText)) {
             val appended = newText.substring(oldText.length)
             if (appended.isNotEmpty()) onSend(appended)
         } else {
-            // Normal backspace/delete at the end, plus simple replacement edits.
             var commonPrefix = 0
             val limit = minOf(oldText.length, newText.length)
             while (commonPrefix < limit && oldText[commonPrefix] == newText[commonPrefix]) {
@@ -108,10 +105,7 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         when (mode) {
             NativeInputMode.BUFFER -> sendBufferedText()
             NativeInputMode.LIVE -> {
-                if (enabled) {
-                    // In live mode IME Enter behaves like the visible Enter button.
-                    applyLiveTextChange(text + "\n")
-                }
+                if (enabled) applyLiveTextChange(text + "\n")
             }
         }
     }
@@ -154,10 +148,10 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                 onValueChange = { newText ->
                     when (mode) {
                         NativeInputMode.LIVE -> applyLiveTextChange(newText)
-                        NativeInputMode.BUFFER -> text = newText
-                    }
-                    if (mode == NativeInputMode.BUFFER) {
-                        liveSourceText = newText
+                        NativeInputMode.BUFFER -> {
+                            text = newText
+                            liveSourceText = newText
+                        }
                     }
                 },
                 enabled = enabled,
@@ -187,7 +181,10 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                 onClick = {
                     when (mode) {
                         NativeInputMode.BUFFER -> sendBufferedText()
-                        NativeInputMode.LIVE -> applyLiveTextChange(text + "\n")
+                        NativeInputMode.LIVE -> {
+                            applyLiveTextChange(text + "\n")
+                            keyboardController?.hide()
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
