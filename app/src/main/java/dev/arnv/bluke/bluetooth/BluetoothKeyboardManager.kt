@@ -1153,7 +1153,7 @@ class BluetoothKeyboardManager(private val context: Context) {
     /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
     fun sendText(text: String): Int {
         var sent = 0
-        for (ch in text.replace("\\r\\n", "\\n").replace('\\r', '\\n')) {
+        for (ch in text.replace("\r\n", "\n").replace('\r', '\n')) {
             val mapping = asciiHidMapping(ch) ?: continue
             val (keyCode, shifted) = mapping
             if (shifted) sendKey(0xE1, true)
@@ -1180,7 +1180,7 @@ class BluetoothKeyboardManager(private val context: Context) {
             '{' -> 0x2F to true
             ']' -> 0x30 to false
             '}' -> 0x30 to true
-            '\\\\' -> 0x31 to false
+            '\\' -> 0x31 to false
             '|' -> 0x31 to true
             ';' -> 0x33 to false
             ':' -> 0x33 to true
@@ -1204,8 +1204,8 @@ class BluetoothKeyboardManager(private val context: Context) {
             '*' -> 0x25 to true
             '(' -> 0x26 to true
             ')' -> 0x27 to true
-            '\\n' -> 0x28 to false
-            '\\t' -> 0x2B to false
+            '\n' -> 0x28 to false
+            '\t' -> 0x2B to false
             else -> null
         }
     }
