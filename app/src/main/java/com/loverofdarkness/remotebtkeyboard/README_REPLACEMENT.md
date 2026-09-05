@@ -1,1 +1,0 @@
-This branch replaces the previous Java HID implementation with a Bluke-derived Kotlin/Compose architecture and adds native Android IME (Gboard) text-entry support. Reference project: https://github.com/arnav-kr/Bluke (AGPL-3.0).
