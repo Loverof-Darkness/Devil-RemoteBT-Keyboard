@@ -219,11 +219,19 @@ jobs:
         with:
           gradle-version: "9.4.1"
 
-      - name: Provide CI release keystore
+      - name: Create temporary CI release keystore
         run: |
-          DEBUG_KEYSTORE="$(find "$HOME" "$ANDROID_HOME" -type f -name debug.keystore -print -quit 2>/dev/null)"
-          test -n "$DEBUG_KEYSTORE"
-          cp "$DEBUG_KEYSTORE" my-upload-key.jks
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/ci-key.pem \
+            -out /tmp/ci-cert.pem \
+            -days 3650 \
+            -subj "/CN=Devil RemoteBT Keyboard/OU=CI/O=Loverof-Darkness/C=US"
+          openssl pkcs12 -export \
+            -out my-upload-key.jks \
+            -inkey /tmp/ci-key.pem \
+            -in /tmp/ci-cert.pem \
+            -name k0 \
+            -passout pass:android
 
       - name: Build and lint
         run: gradle clean lintDebug assembleDebug assembleRelease --stacktrace
