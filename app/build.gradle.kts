@@ -9,7 +9,9 @@ plugins {
 }
 
 android {
-  namespace = "com.loverofdarkness.devilremotekeyboard"
+  // Keep the Bluke source namespace so its generated R/BuildConfig imports remain valid.
+  // The Android package/application identity is the DevilRemoteKeyboard applicationId below.
+  namespace = "dev.arnv.bluke"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
