@@ -227,17 +227,17 @@ jobs:
             -days 3650 \
             -subj "/CN=Devil RemoteBT Keyboard/OU=CI/O=Loverof-Darkness/C=US"
           openssl pkcs12 -export \
-            -out my-upload-key.jks \
+            -out app/my-upload-key.jks \
             -inkey /tmp/ci-key.pem \
             -in /tmp/ci-cert.pem \
             -name k0 \
             -passout pass:android
-          printf '%s\n' \
-            'keystore.path=my-upload-key.jks' \
-            'keystore.password=android' \
-            'keystore.alias=k0' > local.properties
 
       - name: Build
+        env:
+          STORE_PASSWORD: android
+          KEY_PASSWORD: android
+          KEY_ALIAS: k0
         run: gradle clean assembleDebug assembleRelease --stacktrace
 
       - name: Upload Android APKs
