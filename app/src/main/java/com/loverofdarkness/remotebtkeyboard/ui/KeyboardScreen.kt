@@ -1,6 +1,9 @@
 package com.loverofdarkness.remotebtkeyboard.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,14 +13,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
@@ -41,8 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import com.loverofdarkness.remotebtkeyboard.bluetooth.BluetoothKeyboardManager
 import kotlinx.coroutines.delay
@@ -63,6 +67,9 @@ fun KeyboardScreen(manager: BluetoothKeyboardManager) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val canReadBluetoothDevice = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+        context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+
     LaunchedEffect(devices, connected?.address) {
         if (selectedAddress == null || devices.none { it.address == selectedAddress }) {
             selectedAddress = connected?.address ?: devices.firstOrNull()?.address
@@ -78,6 +85,11 @@ fun KeyboardScreen(manager: BluetoothKeyboardManager) {
     }
 
     val selectedDevice = devices.firstOrNull { it.address == selectedAddress }
+    val selectedDeviceLabel = if (!canReadBluetoothDevice) {
+        "Bluetooth device details unavailable until Nearby devices permission is granted"
+    } else {
+        selectedDevice?.let { "${it.name ?: "Bluetooth device"}\n${it.address}" } ?: "No paired devices"
+    }
     val isConnected = connected?.address == selectedAddress
 
     LazyColumn(
@@ -115,19 +127,24 @@ fun KeyboardScreen(manager: BluetoothKeyboardManager) {
 
                     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                         OutlinedTextField(
-                            value = selectedDevice?.let { "${it.name ?: "Bluetooth device"}\n${it.address}" } ?: "No paired devices",
+                            value = selectedDeviceLabel,
                             onValueChange = {},
                             readOnly = true,
                             label = { Text("Paired computer") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier.fillMaxWidth().menuAnchor()
+                            modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         )
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             devices.forEach { device ->
+                                val deviceLabel = if (canReadBluetoothDevice) {
+                                    "${device.name ?: "Bluetooth device"}\n${device.address}"
+                                } else {
+                                    "Bluetooth device"
+                                }
                                 DropdownMenuItem(
-                                    text = { Text("${device.name ?: "Bluetooth device"}\n${device.address}") },
+                                    text = { Text(deviceLabel) },
                                     onClick = {
-                                        selectedAddress = device.address
+                                        if (canReadBluetoothDevice) selectedAddress = device.address
                                         expanded = false
                                     }
                                 )
@@ -137,7 +154,7 @@ fun KeyboardScreen(manager: BluetoothKeyboardManager) {
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
-                            enabled = selectedDevice != null && !isConnected,
+                            enabled = selectedDevice != null && !isConnected && canReadBluetoothDevice,
                             onClick = { selectedDevice?.let(manager::connectDevice) },
                             modifier = Modifier.weight(1f)
                         ) { Text("Connect") }
@@ -190,7 +207,7 @@ fun KeyboardScreen(manager: BluetoothKeyboardManager) {
                             onClick = { sentCount = manager.sendText(nativeText) },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Send, contentDescription = null)
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                             Spacer(modifier = Modifier.padding(horizontal = 2.dp))
                             Text("Send to laptop")
                         }
