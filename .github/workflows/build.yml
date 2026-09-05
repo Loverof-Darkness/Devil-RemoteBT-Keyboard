@@ -21,34 +21,115 @@ jobs:
 
       - name: Sync exact Bluke baseline once
         run: |
-          if [ "$(git log -1 --pretty=%s)" = "sync: apply Bluke baseline with native IME" ]; then
+          # Once the project has been renamed to its final package, never re-sync the
+          # upstream tree again. This keeps future commits on our fork intact.
+          if [ -f "app/src/main/java/com/loverofdarkness/devilremotekeyboard/MainActivity.kt" ]; then
             exit 0
           fi
+
           curl -L --fail --retry 3 https://github.com/arnav-kr/Bluke/archive/refs/heads/main.tar.gz -o /tmp/bluke.tar.gz
           mkdir /tmp/bluke
           tar -xzf /tmp/bluke.tar.gz -C /tmp/bluke --strip-components=1
           rsync -a --delete --exclude='.git/' --exclude='.github/workflows/' /tmp/bluke/ ./
+
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          manager = Path('app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt')
+          old_pkg = 'dev.arnv.bluke'
+          new_pkg = 'com.loverofdarkness.devilremotekeyboard'
+
+          # Keep the complete Bluke implementation, but make the package identity ours.
+          text_extensions = {'.kt', '.kts', '.xml', '.gradle', '.properties', '.pro', '.md', '.txt'}
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts or path.suffix not in text_extensions:
+                  continue
+              try:
+                  text = path.read_text()
+              except UnicodeDecodeError:
+                  continue
+              updated = text.replace(old_pkg, new_pkg)
+              if path.name == 'strings.xml':
+                  updated = updated.replace('<string name="app_name">Bluke</string>', '<string name="app_name">DevilRemoteKeyboard</string>')
+              if path.name == 'settings.gradle.kts':
+                  updated = updated.replace('rootProject.name = "Bluke"', 'rootProject.name = "DevilRemoteKeyboard"')
+              if updated != text:
+                  path.write_text(updated)
+
+          old_dir = Path('app/src/main/java') / Path(old_pkg.replace('.', '/'))
+          new_dir = Path('app/src/main/java') / Path(new_pkg.replace('.', '/'))
+          if old_dir.exists():
+              new_dir.parent.mkdir(parents=True, exist_ok=True)
+              old_dir.rename(new_dir)
+
+          gradle = Path('app/build.gradle.kts')
+          text = gradle.read_text()
+          text = text.replace('namespace = "dev.arnv.bluke"', f'namespace = "{new_pkg}"')
+          text = text.replace('applicationId = "dev.arnv.bluke"', f'applicationId = "{new_pkg}"')
+          gradle.write_text(text)
+
+          # Replace the upstream branding that is visible in the app without touching
+          # upstream URLs/repository references.
+          for rel in [
+              'app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/HomeScreen.kt',
+              'app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/NativeKeyboardInput.kt',
+          ]:
+              p = Path(rel)
+              if p.exists():
+                  p.write_text(p.read_text().replace('Bluke', 'DevilRemoteKeyboard'))
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manager = Path('app/src/main/java/com/loverofdarkness/devilremotekeyboard/bluetooth/BluetoothKeyboardManager.kt')
           text = manager.read_text()
-          marker = '\n    fun close('
-          method = r'''
-              /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
+          text = text.replace(
+              'import kotlinx.coroutines.flow.MutableSharedFlow\n',
+              'import kotlinx.coroutines.flow.MutableSharedFlow\nimport kotlinx.coroutines.sync.Mutex\nimport kotlinx.coroutines.sync.withLock\n'
+          )
+
+          # Serialize native text batches and pace the HID interrupt reports. The normal
+          # Bluke key path remains unchanged; only the added native text bridge gets pacing.
+          text = text.replace(
+              '    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>(',
+              '    private val nativeTextSendMutex = Mutex()\n\n    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>('
+          )
+
+          start = text.find('    /** Extra native Android IME bridge. Bluke\'s original HID path remains unchanged. */')
+          end = text.find('    fun close()', start)
+          if start == -1 or end == -1:
+              raise SystemExit('Native sendText block not found')
+
+          method = r'''    /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
               fun sendText(text: String): Int {
-                  var sent = 0
-                  for (ch in text.replace("\r\n", "\n").replace('\r', '\n')) {
-                      val mapping = asciiHidMapping(ch) ?: continue
-                      val (keyCode, shifted) = mapping
-                      if (shifted) sendKey(0xE1, true)
-                      sendKey(keyCode, true)
-                      sendKey(keyCode, false)
-                      if (shifted) sendKey(0xE1, false)
-                      sent++
+                  val mappings = text
+                      .replace("\r\n", "\n")
+                      .replace('\r', '\n')
+                      .mapNotNull { ch -> asciiHidMapping(ch) }
+
+                  if (mappings.isEmpty()) return 0
+
+                  managerScope.launch(Dispatchers.IO) {
+                      nativeTextSendMutex.withLock {
+                          for ((keyCode, shifted) in mappings) {
+                              if (shifted) {
+                                  sendKey(0xE1, true)
+                                  delay(6)
+                              }
+                              sendKey(keyCode, true)
+                              delay(6)
+                              sendKey(keyCode, false)
+                              delay(6)
+                              if (shifted) {
+                                  sendKey(0xE1, false)
+                                  delay(6)
+                              }
+                          }
+                      }
                   }
-                  return sent
+                  return mappings.size
               }
 
               private fun asciiHidMapping(ch: Char): Pair<Int, Boolean>? {
@@ -95,13 +176,12 @@ jobs:
                       else -> null
                   }
               }
+
           '''
-          if marker not in text:
-              raise SystemExit('BluetoothKeyboardManager close() marker not found')
-          text = text.replace(marker, '\n' + method + marker, 1)
+          text = text[:start] + method + text[end:]
           manager.write_text(text)
 
-          ui = Path('app/src/main/java/dev/arnv/bluke/ui/HomeScreen.kt')
+          ui = Path('app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/HomeScreen.kt')
           text = ui.read_text()
           malformed = re.compile(
               r'\n\s*item\s*\{\s*NativeKeyboardInput\(\s*enabled\s*=\s*isConnected,\s*onSend\s*=\s*btManager::sendText\s*\)\s*\}\s*(?=contentPadding)'
@@ -126,8 +206,9 @@ jobs:
               raise SystemExit('Bluke HomeScreen LazyColumn header not found')
           ui.write_text(text)
           PY
-          cat > app/src/main/java/dev/arnv/bluke/ui/NativeKeyboardInput.kt <<'EOF'
-          package dev.arnv.bluke.ui
+
+          cat > app/src/main/java/com/loverofdarkness/devilremotekeyboard/ui/NativeKeyboardInput.kt <<'EOF'
+          package com.loverofdarkness.devilremotekeyboard.ui
 
           import androidx.compose.foundation.layout.Arrangement
           import androidx.compose.foundation.layout.Column
@@ -201,11 +282,11 @@ jobs:
               }
           }
           EOF
-          rm -f .github/workflows/sync-bluke.yml
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "sync: apply Bluke baseline with native IME" || true
+          git commit -m "sync: apply Bluke baseline with DevilRemoteKeyboard identity and native IME fix" || true
           git push || true
 
       - name: Set up JDK 17
