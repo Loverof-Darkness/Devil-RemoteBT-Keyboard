@@ -11,12 +11,16 @@ import android.provider.Settings;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class MainActivity extends Activity {
     private static final int REQ=10;
-    private KeyboardService service; private boolean bound,searchAfterBind;
-    private LinearLayout list,composer; private TextView status,info; private EditText editor; private Switch live; private Button send,keys,enter;
+    private KeyboardService service; private boolean bound,searchAfterBind,updatingSpinner;
+    private TextView status,info,selectedInfo; private EditText editor; private Switch live; private Button send,keys,enter,connect;
+    private Spinner devices;
+    private final ArrayList<HidController.DeviceRow> rows=new ArrayList<>();
     private final Consumer<HidController.Snapshot> observer=s->runOnUiThread(()->render(s));
     private final ServiceConnection conn=new ServiceConnection(){
         public void onServiceConnected(ComponentName n,IBinder b){
@@ -35,34 +39,64 @@ public final class MainActivity extends Activity {
     private void build(){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(8));setContentView(root);
         TextView title=new TextView(this);title.setText("Devil RemoteBT Keyboard");title.setTextSize(23);title.setPadding(0,dp(4),0,dp(6));root.addView(title);
+
         LinearLayout top=new LinearLayout(this);
         Button search=btn("Search Active Devices"),bt=btn("Bluetooth Settings");
         top.addView(search,new LinearLayout.LayoutParams(0,-2,1));top.addView(bt,new LinearLayout.LayoutParams(0,-2,1));root.addView(top);
-        status=new TextView(this);status.setTextSize(16);status.setPadding(0,dp(5),0,0);root.addView(status);
-        info=new TextView(this);info.setPadding(0,0,0,dp(5));root.addView(info);
 
-        ScrollView sv=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);sv.addView(list);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        status=new TextView(this);status.setTextSize(16);status.setPadding(0,dp(5),0,0);root.addView(status);
+        info=new TextView(this);info.setPadding(0,0,0,dp(4));root.addView(info);
+
+        LinearLayout chooser=new LinearLayout(this);chooser.setOrientation(LinearLayout.VERTICAL);chooser.setPadding(0,dp(3),0,dp(5));
+        TextView label=new TextView(this);label.setText("Available devices");label.setTextSize(14);chooser.addView(label);
+        devices=new Spinner(this);devices.setPrompt("Select Bluetooth device");
+        chooser.addView(devices,new LinearLayout.LayoutParams(-1,dp(52)));
+        root.addView(chooser);
+
+        selectedInfo=new TextView(this);selectedInfo.setTextSize(14);selectedInfo.setPadding(dp(4),dp(2),dp(4),dp(4));root.addView(selectedInfo);
+
+        connect=btn("Connect");connect.setTextSize(16);root.addView(connect,new LinearLayout.LayoutParams(-1,-2));
+
+        ScrollView spacer=new ScrollView(this);spacer.setVisibility(View.GONE);root.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));
 
         LinearLayout controls=new LinearLayout(this);
         live=new Switch(this);live.setText("Live");live.setChecked(true);keys=btn("Keys");send=btn("Send Buffer");
         controls.addView(live,new LinearLayout.LayoutParams(0,-2,1));controls.addView(keys,new LinearLayout.LayoutParams(0,-2,1));controls.addView(send,new LinearLayout.LayoutParams(0,-2,1));root.addView(controls);
 
-        composer=new LinearLayout(this);composer.setOrientation(LinearLayout.HORIZONTAL);composer.setGravity(Gravity.BOTTOM|Gravity.CENTER_VERTICAL);composer.setPadding(0,dp(4),0,0);
+        LinearLayout composer=new LinearLayout(this);composer.setOrientation(LinearLayout.HORIZONTAL);composer.setGravity(Gravity.BOTTOM|Gravity.CENTER_VERTICAL);composer.setPadding(0,dp(4),0,0);
         editor=new EditText(this);editor.setHint("Type message…");editor.setGravity(Gravity.TOP|Gravity.START);editor.setMinLines(1);editor.setMaxLines(5);editor.setSingleLine(false);
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE|android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         editor.setImeOptions(android.view.inputmethod.EditorInfo.IME_FLAG_NO_ENTER_ACTION);editor.setPadding(dp(16),dp(10),dp(16),dp(10));editor.setBackground(rounded(Color.rgb(245,245,245),24));
         composer.addView(editor,new LinearLayout.LayoutParams(0,-2,1));
         enter=btn("➤");enter.setTextSize(20);enter.setContentDescription("Send Enter key");LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(dp(54),dp(54));ep.setMargins(dp(7),0,0,0);composer.addView(enter,ep);root.addView(composer);
 
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_item,new ArrayList<>());
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);devices.setAdapter(adapter);
+        devices.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> p){}
+            public void onItemSelected(android.widget.AdapterView<?> p,View v,int position,long id){
+                if(updatingSpinner||position<0||position>=rows.size()||service==null||service.controller()==null)return;
+                service.controller().select(rows.get(position).address);
+            }
+        });
+
         editor.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int b,int c){if(service!=null&&service.controller()!=null)service.controller().setDraft(s.toString());}public void afterTextChanged(android.text.Editable e){}});
         search.setOnClickListener(v->ensureService(true));
         bt.setOnClickListener(v->startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS)));
+        connect.setOnClickListener(v->{
+            if(service==null||service.controller()==null)return;
+            HidController.Snapshot s=currentSnapshot;
+            if(s!=null&&(s.connected||s.state==HidController.State.CONNECTING||s.state==HidController.State.REGISTERING))service.controller().disconnect();
+            else service.controller().startHid();
+        });
         live.setOnCheckedChangeListener((v,c)->{if(service!=null&&service.controller()!=null)service.controller().setLive(c);});
         send.setOnClickListener(v->{if(service!=null&&service.controller()!=null)service.controller().sendBuffer();});
         enter.setOnClickListener(v->{if(service!=null&&service.controller()!=null)service.controller().special(KeyCodec.ENTER,0);});
         keys.setOnClickListener(v->showKeys());
         setComposerEnabled(false);ensureService(false);
     }
+
+    private HidController.Snapshot currentSnapshot;
 
     private void ensureService(boolean search){
         if(Build.VERSION.SDK_INT>=31){
@@ -85,28 +119,32 @@ public final class MainActivity extends Activity {
     }
 
     private void render(HidController.Snapshot s){
-        if(s==null)return;
-        String normal=s.normalConnected?"🟢 Connected":"🔴 Disconnected";
+        if(s==null)return; currentSnapshot=s;
+        String bluetooth=s.normalConnected?"🟢 Connected":"⚪ Ready";
         String hid=s.connected?"🟢 Connected":(s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING?"🟠 Connecting":"🔴 Disconnected");
-        status.setText("Bluetooth: "+normal+"    HID: "+hid+"\nTarget: "+s.selectedName);
+        status.setText("Bluetooth: "+bluetooth+"    HID: "+hid);
         info.setText(s.message);
-        list.removeAllViews();
-        for(HidController.DeviceRow d:s.devices){
-            LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.VERTICAL);row.setPadding(dp(8),dp(7),dp(8),dp(7));
-            if(d.name.equals(s.selectedName))row.setBackground(rounded(Color.rgb(232,245,233),12));
-            TextView n=new TextView(this);n.setText(d.name+"\n"+d.address);n.setTextSize(16);row.addView(n);
-            LinearLayout a=new LinearLayout(this);
-            Button sel=btn(d.name.equals(s.selectedName)?"✓ Selected":"Select"),c=btn("Connect"),h=btn("Start Keyboard HID"),x=btn("Disconnect");
-            a.addView(sel,new LinearLayout.LayoutParams(0,-2,1));a.addView(c,new LinearLayout.LayoutParams(0,-2,1));a.addView(h,new LinearLayout.LayoutParams(0,-2,1.5f));a.addView(x,new LinearLayout.LayoutParams(0,-2,1));row.addView(a);
-            sel.setOnClickListener(v->service.controller().select(d.address));
-            c.setOnClickListener(v->service.controller().connect());
-            h.setOnClickListener(v->service.controller().startHid());
-            x.setOnClickListener(v->service.controller().disconnect());
-            c.setEnabled(d.name.equals(s.selectedName)&&!s.connected&&s.state!=HidController.State.REGISTERING&&s.state!=HidController.State.CONNECTING);
-            h.setEnabled(d.name.equals(s.selectedName)&&!s.connected&&s.state!=HidController.State.REGISTERING&&s.state!=HidController.State.CONNECTING);
-            x.setEnabled(d.name.equals(s.selectedName)&&(s.connected||s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING));
-            list.addView(row);
+
+        rows.clear();rows.addAll(s.devices);
+        ArrayAdapter<String> a=(ArrayAdapter<String>)devices.getAdapter();
+        updatingSpinner=true;a.clear();
+        int selected=0;
+        for(int i=0;i<rows.size();i++){
+            HidController.DeviceRow d=rows.get(i);
+            a.add(d.name+"\n"+d.address);
+            if(d.name.equals(s.selectedName))selected=i;
         }
+        a.notifyDataSetChanged();
+        if(rows.isEmpty()){devices.setEnabled(false);selectedInfo.setText("No paired Bluetooth devices found. Pair the laptop first, then search again.");}
+        else {devices.setEnabled(!s.connected&&!s.busy);devices.setSelection(Math.min(selected,rows.size()-1),false);HidController.DeviceRow d=rows.get(Math.min(selected,rows.size()-1));selectedInfo.setText("Target: "+d.name+"\nAddress: "+d.address);}
+        updatingSpinner=false;
+
+        boolean busy=s.connected||s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING;
+        if(s.connected){connect.setText("Disconnect");connect.setEnabled(true);}
+        else if(s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING){connect.setText("Cancel");connect.setEnabled(true);}
+        else {connect.setText("Connect");connect.setEnabled(!rows.isEmpty()&&!s.busy);}
+        if(busy)devices.setEnabled(false);
+
         setComposerEnabled(s.connected&&!s.busy);
         live.setEnabled(s.connected&&!s.busy);keys.setEnabled(s.connected&&!s.busy);send.setEnabled(s.connected&&!s.live&&!s.busy);
         if(!s.draft.equals(editor.getText().toString())&&!editor.hasFocus()){editor.setText(s.draft);editor.setSelection(editor.length());}
