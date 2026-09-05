@@ -69,18 +69,18 @@ class BluetoothKeyboardManager(private val context: Context) {
     private var modifiers = 0
     private val keys = ByteArray(6)
 
-    private val hidDescriptor = byteArrayOf(
-        0x05, 0x01, 0x09, 0x06, 0xA1.toByte(), 0x01,
-        0x85, REPORT_ID.toByte(),
-        0x05, 0x07, 0x19.toByte(), 0xE0.toByte(), 0x29, 0xE7.toByte(),
-        0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95, 0x08, 0x81.toByte(), 0x02,
-        0x95, 0x01, 0x75, 0x08, 0x81.toByte(), 0x01,
-        0x95, 0x05, 0x75, 0x01, 0x05, 0x08, 0x19, 0x01, 0x29, 0x05, 0x91.toByte(), 0x02,
-        0x95, 0x01, 0x75, 0x03, 0x91.toByte(), 0x01,
+    private val hidDescriptor = intArrayOf(
+        0x05, 0x01, 0x09, 0x06, 0xA1, 0x01,
+        0x85, REPORT_ID,
+        0x05, 0x07, 0x19, 0xE0, 0x29, 0xE7,
+        0x15, 0x00, 0x25, 0x01, 0x75, 0x01, 0x95, 0x08, 0x81, 0x02,
+        0x95, 0x01, 0x75, 0x08, 0x81, 0x01,
+        0x95, 0x05, 0x75, 0x01, 0x05, 0x08, 0x19, 0x01, 0x29, 0x05, 0x91, 0x02,
+        0x95, 0x01, 0x75, 0x03, 0x91, 0x01,
         0x95, 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x65,
-        0x05, 0x07, 0x19, 0x00, 0x29, 0x65, 0x81.toByte(), 0x00,
-        0xC0.toByte()
-    )
+        0x05, 0x07, 0x19, 0x00, 0x29, 0x65, 0x81, 0x00,
+        0xC0
+    ).map(Int::toByte).toByteArray()
 
     private val sdpSettings by lazy {
         BluetoothHidDeviceAppSdpSettings(
@@ -99,6 +99,7 @@ class BluetoothKeyboardManager(private val context: Context) {
             Log.d(TAG, "HID Device profile connected")
             registerApp()
         }
+
         override fun onServiceDisconnected(profile: Int) {
             if (profile != BluetoothProfile.HID_DEVICE) return
             hid = null
@@ -328,7 +329,6 @@ class BluetoothKeyboardManager(private val context: Context) {
         if (_connectedDevice.value == null) return 0
         val normalized = text.replace("\r\n", "\n").replace('\r', '\n')
         var sent = 0
-        // Replace the focused desktop field so the native Android input acts like a sendable buffer.
         tapModifierAndKey(LCTRL, 0x04)
         tapKey(0x2A)
 
@@ -357,43 +357,43 @@ class BluetoothKeyboardManager(private val context: Context) {
     }
 
     private fun asciiStroke(c: Char): Pair<Int, Int>? = when {
-        c in 'a'..'z' -> 0x04 + c - 'a' to 0
-        c in 'A'..'Z' -> 0x04 + c - 'A' to LSHIFT
-        c in '1'..'9' -> 0x1E + c - '1' to 0
-        c == '0' -> 0x27 to 0
-        c == ' ' -> 0x2C to 0
-        c == '-' -> 0x2D to 0
-        c == '_' -> 0x2D to LSHIFT
-        c == '=' -> 0x2E to 0
-        c == '+' -> 0x2E to LSHIFT
-        c == '[' -> 0x2F to 0
-        c == '{' -> 0x2F to LSHIFT
-        c == ']' -> 0x30 to 0
-        c == '}' -> 0x30 to LSHIFT
-        c == '\\' -> 0x31 to 0
-        c == '|' -> 0x31 to LSHIFT
-        c == ';' -> 0x33 to 0
-        c == ':' -> 0x33 to LSHIFT
-        c == '\'' -> 0x34 to 0
-        c == '"' -> 0x34 to LSHIFT
-        c == '`' -> 0x35 to 0
-        c == '~' -> 0x35 to LSHIFT
-        c == ',' -> 0x36 to 0
-        c == '<' -> 0x36 to LSHIFT
-        c == '.' -> 0x37 to 0
-        c == '>' -> 0x37 to LSHIFT
-        c == '/' -> 0x38 to 0
-        c == '?' -> 0x38 to LSHIFT
-        c == '!' -> 0x1E to LSHIFT
-        c == '@' -> 0x1F to LSHIFT
-        c == '#' -> 0x20 to LSHIFT
-        c == '$' -> 0x21 to LSHIFT
-        c == '%' -> 0x22 to LSHIFT
-        c == '^' -> 0x23 to LSHIFT
-        c == '&' -> 0x24 to LSHIFT
-        c == '*' -> 0x25 to LSHIFT
-        c == '(' -> 0x26 to LSHIFT
-        c == ')' -> 0x27 to LSHIFT
+        c in 'a'..'z' -> Pair(0x04 + (c - 'a'), 0)
+        c in 'A'..'Z' -> Pair(0x04 + (c - 'A'), LSHIFT)
+        c in '1'..'9' -> Pair(0x1E + (c - '1'), 0)
+        c == '0' -> Pair(0x27, 0)
+        c == ' ' -> Pair(0x2C, 0)
+        c == '-' -> Pair(0x2D, 0)
+        c == '_' -> Pair(0x2D, LSHIFT)
+        c == '=' -> Pair(0x2E, 0)
+        c == '+' -> Pair(0x2E, LSHIFT)
+        c == '[' -> Pair(0x2F, 0)
+        c == '{' -> Pair(0x2F, LSHIFT)
+        c == ']' -> Pair(0x30, 0)
+        c == '}' -> Pair(0x30, LSHIFT)
+        c == '\\' -> Pair(0x31, 0)
+        c == '|' -> Pair(0x31, LSHIFT)
+        c == ';' -> Pair(0x33, 0)
+        c == ':' -> Pair(0x33, LSHIFT)
+        c == '\'' -> Pair(0x34, 0)
+        c == '"' -> Pair(0x34, LSHIFT)
+        c == '`' -> Pair(0x35, 0)
+        c == '~' -> Pair(0x35, LSHIFT)
+        c == ',' -> Pair(0x36, 0)
+        c == '<' -> Pair(0x36, LSHIFT)
+        c == '.' -> Pair(0x37, 0)
+        c == '>' -> Pair(0x37, LSHIFT)
+        c == '/' -> Pair(0x38, 0)
+        c == '?' -> Pair(0x38, LSHIFT)
+        c == '!' -> Pair(0x1E, LSHIFT)
+        c == '@' -> Pair(0x1F, LSHIFT)
+        c == '#' -> Pair(0x20, LSHIFT)
+        c == '$' -> Pair(0x21, LSHIFT)
+        c == '%' -> Pair(0x22, LSHIFT)
+        c == '^' -> Pair(0x23, LSHIFT)
+        c == '&' -> Pair(0x24, LSHIFT)
+        c == '*' -> Pair(0x25, LSHIFT)
+        c == '(' -> Pair(0x26, LSHIFT)
+        c == ')' -> Pair(0x27, LSHIFT)
         else -> null
     }
 
