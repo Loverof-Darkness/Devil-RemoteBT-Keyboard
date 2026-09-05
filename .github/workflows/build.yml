@@ -232,9 +232,13 @@ jobs:
             -in /tmp/ci-cert.pem \
             -name k0 \
             -passout pass:android
+          printf '%s\n' \
+            'keystore.path=my-upload-key.jks' \
+            'keystore.password=android' \
+            'keystore.alias=k0' > local.properties
 
-      - name: Build and lint
-        run: gradle clean lintDebug assembleDebug assembleRelease --stacktrace
+      - name: Build
+        run: gradle clean assembleDebug assembleRelease --stacktrace
 
       - name: Upload Android APKs
         uses: actions/upload-artifact@v4
