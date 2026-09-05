@@ -16,5 +16,16 @@ public final class KeyboardTests {
     @Test public void newlineBecomesSpace(){assertEquals("a b c",KeyCodec.normalize("a\nb\r\nc"));}
     @Test(expected=IllegalArgumentException.class) public void unicodeRejected(){KeyCodec.normalize("🙂");}
     @Test public void releaseIsEightZeroBytes(){assertArrayEquals(new byte[8],KeyCodec.release());}
-    @Test public void editPlan(){EditPlan p=new EditPlan("Hello world","Hello wor");assertEquals(3,p.deletes);assertEquals(9,p.index);}
+    @Test public void editPlanShorten(){
+        EditPlan p=new EditPlan("Hello world","Hello wor");
+        assertEquals(2,p.deletes);
+        assertEquals(9,p.index);
+        assertEquals("Hello wor",p.target);
+    }
+    @Test public void editPlanAppend(){
+        EditPlan p=new EditPlan("Hi","Hello");
+        assertEquals(0,p.deletes);
+        assertEquals(2,p.index);
+        assertFalse(p.done());
+    }
 }
