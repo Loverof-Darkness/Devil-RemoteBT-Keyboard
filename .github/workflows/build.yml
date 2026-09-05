@@ -19,11 +19,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fix native HID text pacing
+      - name: Apply native input and identity fixes
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
+
+          # Keep the original Bluke source namespace so generated R/BuildConfig imports remain valid.
+          gradle_file = Path('app/build.gradle.kts')
+          gradle = gradle_file.read_text()
+          gradle = gradle.replace(
+              'namespace = "com.loverofdarkness.devilremotekeyboard"',
+              'namespace = "dev.arnv.bluke"',
+              1,
+          )
+          gradle_file.write_text(gradle)
 
           manager = Path('app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt')
           text = manager.read_text()
@@ -32,12 +41,20 @@ jobs:
               marker = 'import kotlinx.coroutines.flow.MutableSharedFlow\n'
               if marker not in text:
                   raise SystemExit('MutableSharedFlow import marker not found')
-              text = text.replace(marker, marker + 'import kotlinx.coroutines.sync.Mutex\nimport kotlinx.coroutines.sync.withLock\n', 1)
+              text = text.replace(
+                  marker,
+                  marker + 'import kotlinx.coroutines.sync.Mutex\nimport kotlinx.coroutines.sync.withLock\n',
+                  1,
+              )
 
               marker = '    private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>('
               if marker not in text:
                   raise SystemExit('connectionStateFlow marker not found')
-              text = text.replace(marker, '    private val nativeTextSendMutex = Mutex()\n\n' + marker, 1)
+              text = text.replace(
+                  marker,
+                  '    private val nativeTextSendMutex = Mutex()\n\n' + marker,
+                  1,
+              )
 
           start = text.find('    /** Extra native Android IME bridge.')
           end = text.find('    fun close()', start)
@@ -58,15 +75,17 @@ jobs:
                           for ((keyCode, shifted) in mappings) {
                               if (shifted) {
                                   sendKey(0xE1, true)
-                                  delay(8)
+                                  delay(10)
                               }
+
                               sendKey(keyCode, true)
-                              delay(8)
+                              delay(10)
                               sendKey(keyCode, false)
-                              delay(8)
+                              delay(10)
+
                               if (shifted) {
                                   sendKey(0xE1, false)
-                                  delay(8)
+                                  delay(10)
                               }
                           }
                       }
@@ -81,6 +100,7 @@ jobs:
                       in '1'..'9' -> (0x1E + (ch - '1')) to false
                       '0' -> 0x27 to false
                       ' ' -> 0x2C to false
+                      '\b' -> 0x2A to false
                       '-' -> 0x2D to false
                       '_' -> 0x2D to true
                       '=' -> 0x2E to false
@@ -124,15 +144,15 @@ jobs:
           manager.write_text(text)
           PY
 
-      - name: Commit native input fix
+      - name: Commit native input and identity fixes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt
+          git add app/build.gradle.kts app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt
           if git diff --cached --quiet; then
-            echo "No native input source changes to commit."
+            echo "No generated source fixes to commit."
           else
-            git commit -m "fix: pace native HID text reports"
+            git commit -m "fix: stabilize native text input modes"
             git push
           fi
 
