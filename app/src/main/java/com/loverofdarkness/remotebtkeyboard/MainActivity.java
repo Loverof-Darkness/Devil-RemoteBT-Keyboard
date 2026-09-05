@@ -55,7 +55,7 @@ public final class MainActivity extends Activity {
 
         selectedInfo=new TextView(this);selectedInfo.setTextSize(14);selectedInfo.setPadding(dp(4),dp(2),dp(4),dp(4));root.addView(selectedInfo);
 
-        connect=btn("Connect");connect.setTextSize(16);root.addView(connect,new LinearLayout.LayoutParams(-1,-2));
+        connect=btn("Connect as Keyboard");connect.setTextSize(16);root.addView(connect,new LinearLayout.LayoutParams(-1,-2));
 
         ScrollView spacer=new ScrollView(this);spacer.setVisibility(View.GONE);root.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));
 
@@ -120,9 +120,9 @@ public final class MainActivity extends Activity {
 
     private void render(HidController.Snapshot s){
         if(s==null)return; currentSnapshot=s;
-        String bluetooth=s.normalConnected?"🟢 Connected":"⚪ Ready";
+        String bluetooth=s.normalConnected?"🟢 Link active":"🔵 Paired";
         String hid=s.connected?"🟢 Connected":(s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING?"🟠 Connecting":"🔴 Disconnected");
-        status.setText("Bluetooth: "+bluetooth+"    HID: "+hid);
+        status.setText("Bluetooth: "+bluetooth+"    HID Keyboard: "+hid);
         info.setText(s.message);
 
         rows.clear();rows.addAll(s.devices);
@@ -142,7 +142,7 @@ public final class MainActivity extends Activity {
         boolean busy=s.connected||s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING;
         if(s.connected){connect.setText("Disconnect");connect.setEnabled(true);}
         else if(s.state==HidController.State.REGISTERING||s.state==HidController.State.CONNECTING){connect.setText("Cancel");connect.setEnabled(true);}
-        else {connect.setText("Connect");connect.setEnabled(!rows.isEmpty()&&!s.busy);}
+        else {connect.setText("Connect as Keyboard");connect.setEnabled(!rows.isEmpty()&&!s.busy);}
         if(busy)devices.setEnabled(false);
 
         setComposerEnabled(s.connected&&!s.busy);
