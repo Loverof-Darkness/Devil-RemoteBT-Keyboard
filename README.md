@@ -1,28 +1,22 @@
 # Devil RemoteBT Keyboard
 
-A small Android Bluetooth HID keyboard for Windows and Linux desktops.
+An Android Bluetooth HID keyboard focused on using the phone's own keyboard/IME (for example Gboard) to enter text on a paired desktop.
 
-## Build
+## Architecture
 
-The GitHub Actions workflow provisions JDK 17 and Gradle 8.9. Locally, use the same toolchain and Android SDK Platform 35:
+The Bluetooth HID transport and on-screen keyboard structure are based on [Bluke](https://github.com/arnav-kr/Bluke), with the application package, branding, and UI simplified for Devil RemoteBT Keyboard. Bluke is licensed under AGPL-3.0; this project retains that licensing and attribution.
 
-```bash
-gradle clean testDebugUnitTest lintDebug assembleDebug assembleRelease
-```
+The app uses Android's public `BluetoothHidDevice` API for the keyboard connection and a normal Android Compose text field for native IME input. That means Gboard remains the phone's normal keyboard: it can provide suggestions, voice input, multilingual composition, and other IME features, while the app converts supported committed text into Bluetooth HID keyboard reports for the paired computer.
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
+## Flow
 
-## How it works
+1. Pair the computer with the phone in Android Bluetooth settings.
+2. Open Devil RemoteBT Keyboard and select the paired computer.
+3. Connect as a Bluetooth keyboard.
+4. Focus **Native keyboard input** to bring up the phone's configured IME (such as Gboard).
+5. Press **Send to laptop** to transmit the text as HID keyboard input.
+6. The built-in compact keyboard remains available for direct key presses and modifier/function keys.
 
-1. Pair/connect the Android phone with the target computer using the normal Bluetooth settings.
-2. Open the app and press **Search Devices**.
-3. The app lists only observable connected computer devices; pairing alone is not enough for the strict picker.
-4. Select the computer and press **Connect**.
-5. Wait for the explicit **Connected** state.
-6. Type in the composer, use Live Mode or Buffered Mode, or open the keyboard key menu.
+## Host text support
 
-The HID session is owned by a foreground connected-device service rather than the Activity, so switching apps or rotating the UI does not intentionally tear down the session.
-
-## Limitations
-
-Ordinary keyboard HID cannot transfer arbitrary binary files or universally encode Unicode emoji. The app therefore does not pretend those features work. Live Mode is a composing-segment projection: HID cannot read the remote caret, selection, focus, or delivery acknowledgement. Use a US keyboard layout on Windows/Linux for the supported ASCII mapping.
+Bluetooth HID carries keyboard usages rather than Android Unicode text. The native IME can therefore accept much richer input locally than a generic HID keyboard can encode on every desktop. The transport currently sends the standard printable US-ASCII range plus Enter. Unsupported Unicode characters are kept in the local text field instead of being silently transformed into incorrect characters.
