@@ -227,7 +227,7 @@ jobs:
             -days 3650 \
             -subj "/CN=Devil RemoteBT Keyboard/OU=CI/O=Loverof-Darkness/C=US"
           openssl pkcs12 -export \
-            -out app/my-upload-key.jks \
+            -out my-upload-key.jks \
             -inkey /tmp/ci-key.pem \
             -in /tmp/ci-cert.pem \
             -name k0 \
