@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.os.*;
 import android.provider.Settings;
 import android.view.*;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
 import java.util.function.Consumer;
 
