@@ -196,9 +196,10 @@ public final class MainActivity extends Activity {
         send.setEnabled(s.connected && !s.live && !s.busy);
         live.setEnabled(!s.busy);
         send.setText(s.live ? "Send Buffer" : "Send Buffer (use composer text)");
-        if (s.connected && !editor.hasFocus() && !s.draft.equals(editor.getText().toString())) {
+        if (s.connected && !s.draft.equals(editor.getText().toString())) {
+            int end = editor.length();
             editor.setText(s.draft);
-            editor.setSelection(editor.length());
+            editor.setSelection(Math.min(end, editor.length()));
         }
     }
 
