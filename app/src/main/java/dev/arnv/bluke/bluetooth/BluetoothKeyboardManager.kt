@@ -29,6 +29,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.channels.BufferOverflow
 
@@ -121,6 +123,8 @@ class BluetoothKeyboardManager(private val context: Context) {
     private val appRegistrationState = MutableStateFlow(false)
     @Volatile private var isRegisteringInProcess = false
     private val isAppRegistered: Boolean get() = appRegistrationState.value
+    private val nativeTextSendMutex = Mutex()
+
     private val connectionStateFlow = MutableSharedFlow<Pair<BluetoothDevice, Int>>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -1152,17 +1156,32 @@ class BluetoothKeyboardManager(private val context: Context) {
 
     /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
     fun sendText(text: String): Int {
-        var sent = 0
-        for (ch in text.replace("\r\n", "\n").replace('\r', '\n')) {
-            val mapping = asciiHidMapping(ch) ?: continue
-            val (keyCode, shifted) = mapping
-            if (shifted) sendKey(0xE1, true)
-            sendKey(keyCode, true)
-            sendKey(keyCode, false)
-            if (shifted) sendKey(0xE1, false)
-            sent++
+        val mappings = text
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
+            .mapNotNull { ch -> asciiHidMapping(ch) }
+
+        if (mappings.isEmpty()) return 0
+
+        managerScope.launch(Dispatchers.IO) {
+            nativeTextSendMutex.withLock {
+                for ((keyCode, shifted) in mappings) {
+                    if (shifted) {
+                        sendKey(0xE1, true)
+                        delay(8)
+                    }
+                    sendKey(keyCode, true)
+                    delay(8)
+                    sendKey(keyCode, false)
+                    delay(8)
+                    if (shifted) {
+                        sendKey(0xE1, false)
+                        delay(8)
+                    }
+                }
+            }
         }
-        return sent
+        return mappings.size
     }
 
     private fun asciiHidMapping(ch: Char): Pair<Int, Boolean>? {
