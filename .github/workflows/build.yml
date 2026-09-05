@@ -27,7 +27,7 @@ jobs:
           curl -L --fail --retry 3 https://github.com/arnav-kr/Bluke/archive/refs/heads/main.tar.gz -o /tmp/bluke.tar.gz
           mkdir /tmp/bluke
           tar -xzf /tmp/bluke.tar.gz -C /tmp/bluke --strip-components=1
-          rsync -a --delete --exclude='.git/' /tmp/bluke/ ./
+          rsync -a --delete --exclude='.git/' --exclude='.github/workflows/' /tmp/bluke/ ./
           python3 - <<'PY'
           from pathlib import Path
           import re
