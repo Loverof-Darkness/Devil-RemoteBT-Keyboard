@@ -1168,15 +1168,17 @@ class BluetoothKeyboardManager(private val context: Context) {
                 for ((keyCode, shifted) in mappings) {
                     if (shifted) {
                         sendKey(0xE1, true)
-                        delay(8)
+                        delay(10)
                     }
+
                     sendKey(keyCode, true)
-                    delay(8)
+                    delay(10)
                     sendKey(keyCode, false)
-                    delay(8)
+                    delay(10)
+
                     if (shifted) {
                         sendKey(0xE1, false)
-                        delay(8)
+                        delay(10)
                     }
                 }
             }
@@ -1191,6 +1193,7 @@ class BluetoothKeyboardManager(private val context: Context) {
             in '1'..'9' -> (0x1E + (ch - '1')) to false
             '0' -> 0x27 to false
             ' ' -> 0x2C to false
+            '\b' -> 0x2A to false
             '-' -> 0x2D to false
             '_' -> 0x2D to true
             '=' -> 0x2E to false
