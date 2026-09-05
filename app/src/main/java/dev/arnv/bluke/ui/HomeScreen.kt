@@ -956,15 +956,15 @@ fun HomeScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .navigationBarsPadding(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 100.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
                   item {
                       NativeKeyboardInput(
                           enabled = isConnected,
                           onSend = btManager::sendText
                       )
                   }
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 100.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
                             // Unified Top Scan & Status Card
                             item {
                                 Card(

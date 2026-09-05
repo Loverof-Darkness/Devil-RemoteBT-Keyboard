@@ -1150,66 +1150,62 @@ class BluetoothKeyboardManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
 
-    /** Sends printable text through the existing Bluke HID keyboard path.
-     * Android IMEs remain native; only standard HID-representable characters are transmitted.
-     */
+    /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
     fun sendText(text: String): Int {
         var sent = 0
         for (ch in text.replace("\\r\\n", "\\n").replace('\\r', '\\n')) {
             val mapping = asciiHidMapping(ch) ?: continue
             val (keyCode, shifted) = mapping
-            if (shifted) sendKey(dev.arnv.bluke.ui.KeyboardLayouts.MOD_LSHIFT, true)
+            if (shifted) sendKey(0xE1, true)
             sendKey(keyCode, true)
             sendKey(keyCode, false)
-            if (shifted) sendKey(dev.arnv.bluke.ui.KeyboardLayouts.MOD_LSHIFT, false)
+            if (shifted) sendKey(0xE1, false)
             sent++
-            Thread.sleep(5)
         }
         return sent
     }
 
     private fun asciiHidMapping(ch: Char): Pair<Int, Boolean>? {
-        val k = dev.arnv.bluke.ui.KeyboardLayouts
         return when (ch) {
-            in 'a'..'z' -> (k.KEY_A + (ch - 'a')) to false
-            in 'A'..'Z' -> (k.KEY_A + (ch.lowercaseChar() - 'a')) to true
-            in '1'..'9' -> (k.KEY_1 + (ch - '1')) to false
-            '0' -> k.KEY_0 to false
-            ' ' -> k.KEY_SPACE to false
-            '-' -> k.KEY_MINUS to false
-            '_' -> k.KEY_MINUS to true
-            '=' -> k.KEY_EQUAL to false
-            '+' -> k.KEY_EQUAL to true
-            '[' -> k.KEY_LBRACKET to false
-            '{' -> k.KEY_LBRACKET to true
-            ']' -> k.KEY_RBRACKET to false
-            '}' -> k.KEY_RBRACKET to true
-            '\\\\' -> k.KEY_BACKSLASH to false
-            '|' -> k.KEY_BACKSLASH to true
-            ';' -> k.KEY_SEMICOLON to false
-            ':' -> k.KEY_SEMICOLON to true
-            '\'' -> k.KEY_APOSTROPHE to false
-            '"' -> k.KEY_APOSTROPHE to true
-            '`' -> k.KEY_GRAVE to false
-            '~' -> k.KEY_GRAVE to true
-            ',' -> k.KEY_COMMA to false
-            '<' -> k.KEY_COMMA to true
-            '.' -> k.KEY_PERIOD to false
-            '>' -> k.KEY_PERIOD to true
-            '/' -> k.KEY_SLASH to false
-            '?' -> k.KEY_SLASH to true
-            '!' -> k.KEY_1 to true
-            '@' -> k.KEY_2 to true
-            '#' -> k.KEY_3 to true
-            '$' -> k.KEY_4 to true
-            '%' -> k.KEY_5 to true
-            '^' -> k.KEY_6 to true
-            '&' -> k.KEY_7 to true
-            '*' -> k.KEY_8 to true
-            '(' -> k.KEY_9 to true
-            ')' -> k.KEY_0 to true
-            '\\n' -> k.KEY_ENTER to false
-            '\\t' -> k.KEY_TAB to false
+            in 'a'..'z' -> (0x04 + (ch - 'a')) to false
+            in 'A'..'Z' -> (0x04 + (ch.lowercaseChar() - 'a')) to true
+            in '1'..'9' -> (0x1E + (ch - '1')) to false
+            '0' -> 0x27 to false
+            ' ' -> 0x2C to false
+            '-' -> 0x2D to false
+            '_' -> 0x2D to true
+            '=' -> 0x2E to false
+            '+' -> 0x2E to true
+            '[' -> 0x2F to false
+            '{' -> 0x2F to true
+            ']' -> 0x30 to false
+            '}' -> 0x30 to true
+            '\\\\' -> 0x31 to false
+            '|' -> 0x31 to true
+            ';' -> 0x33 to false
+            ':' -> 0x33 to true
+            '\'' -> 0x34 to false
+            '"' -> 0x34 to true
+            '`' -> 0x35 to false
+            '~' -> 0x35 to true
+            ',' -> 0x36 to false
+            '<' -> 0x36 to true
+            '.' -> 0x37 to false
+            '>' -> 0x37 to true
+            '/' -> 0x38 to false
+            '?' -> 0x38 to true
+            '!' -> 0x1E to true
+            '@' -> 0x1F to true
+            '#' -> 0x20 to true
+            '$' -> 0x21 to true
+            '%' -> 0x22 to true
+            '^' -> 0x23 to true
+            '&' -> 0x24 to true
+            '*' -> 0x25 to true
+            '(' -> 0x26 to true
+            ')' -> 0x27 to true
+            '\\n' -> 0x28 to false
+            '\\t' -> 0x2B to false
             else -> null
         }
     }
