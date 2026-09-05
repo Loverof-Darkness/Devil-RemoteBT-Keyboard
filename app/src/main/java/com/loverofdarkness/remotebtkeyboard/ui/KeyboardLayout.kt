@@ -2,15 +2,7 @@ package com.loverofdarkness.remotebtkeyboard.ui
 
 import androidx.compose.ui.graphics.Color
 
-/** Bluke-inspired compact keyboard model for Devil RemoteBT Keyboard. */
 enum class KeyColorCategory { ALPHA, MOD, ACCENT }
-
-enum class CaseColor(val color: Color) {
-    BLACK(Color(0xFF1E1E20)),
-    GRAY(Color(0xFF5A5C61)),
-    SILVER(Color(0xFFD1D5DB)),
-    WHITE(Color(0xFFF9FAFB))
-}
 
 data class KeyInfo(
     val legend: String,
@@ -47,7 +39,6 @@ object KeyboardLayouts {
     const val SHIFT = 0xE1
     const val ALT = 0xE2
     const val GUI = 0xE3
-
     const val ENTER = 0x28
     const val ESC = 0x29
     const val BACKSPACE = 0x2A
@@ -59,41 +50,35 @@ object KeyboardLayouts {
     const val LEFT = 0x50
     const val RIGHT = 0x4F
 
-    private fun letter(c: Char) = KeyInfo(c.uppercase(), keyCode = 0x04 + c - 'a')
+    private fun letter(c: Char) = KeyInfo(c.uppercase(), keyCode = 0x04 + (c - 'a'))
 
     val rows: List<List<KeyInfo>> = listOf(
         listOf(KeyInfo("Esc", keyCode = ESC, category = KeyColorCategory.ACCENT)) +
-            ('1'..'0').mapIndexed { i, c ->
-                when (c) {
-                    '0' -> KeyInfo("0", ")", keyCode = 0x27)
-                    else -> KeyInfo(c.toString(), "!@#$%^&*()"[i].toString(), keyCode = 0x1E + i)
-                }
-            } + listOf(
-                KeyInfo("-", "_", keyCode = 0x2D),
-                KeyInfo("=", "+", keyCode = 0x2E),
+            listOf(
+                KeyInfo("1", "!", keyCode = 0x1E), KeyInfo("2", "@", keyCode = 0x1F),
+                KeyInfo("3", "#", keyCode = 0x20), KeyInfo("4", "$", keyCode = 0x21),
+                KeyInfo("5", "%", keyCode = 0x22), KeyInfo("6", "^", keyCode = 0x23),
+                KeyInfo("7", "&", keyCode = 0x24), KeyInfo("8", "*", keyCode = 0x25),
+                KeyInfo("9", "(", keyCode = 0x26), KeyInfo("0", ")", keyCode = 0x27),
+                KeyInfo("-", "_", keyCode = 0x2D), KeyInfo("=", "+", keyCode = 0x2E),
                 KeyInfo("Backspace", keyCode = BACKSPACE, width = 2f, category = KeyColorCategory.MOD)
             ),
         listOf(KeyInfo("Tab", keyCode = TAB, width = 1.5f, category = KeyColorCategory.MOD)) +
             "qwertyuiop".map { letter(it) } + listOf(
-                KeyInfo("[", "{", keyCode = 0x2F),
-                KeyInfo("]", "}", keyCode = 0x30),
-                KeyInfo("\\", "|", keyCode = 0x31),
-                KeyInfo("Delete", keyCode = DELETE, width = 1.5f, category = KeyColorCategory.MOD)
+                KeyInfo("[", "{", keyCode = 0x2F), KeyInfo("]", "}", keyCode = 0x30),
+                KeyInfo("\\", "|", keyCode = 0x31), KeyInfo("Delete", keyCode = DELETE, width = 1.5f, category = KeyColorCategory.MOD)
             ),
         listOf(KeyInfo("Caps", keyCode = 0x39, width = 1.75f, category = KeyColorCategory.MOD)) +
             "asdfghjkl".map { letter(it) } + listOf(
-                KeyInfo(";", ":", keyCode = 0x33),
-                KeyInfo("'", "\"", keyCode = 0x34),
+                KeyInfo(";", ":", keyCode = 0x33), KeyInfo("'", "\"", keyCode = 0x34),
                 KeyInfo("Enter", keyCode = ENTER, width = 2.25f, category = KeyColorCategory.ACCENT)
             ),
         listOf(KeyInfo("Shift", keyCode = SHIFT, width = 2.25f, category = KeyColorCategory.ACCENT)) +
             "zxcvbnm".map { letter(it) } + listOf(
-                KeyInfo(",", "<", keyCode = 0x36),
-                KeyInfo(".", ">", keyCode = 0x37),
+                KeyInfo(",", "<", keyCode = 0x36), KeyInfo(".", ">", keyCode = 0x37),
                 KeyInfo("/", "?", keyCode = 0x38),
                 KeyInfo("Shift", keyCode = SHIFT, width = 1.75f, category = KeyColorCategory.ACCENT),
-                KeyInfo("↑", keyCode = UP, category = KeyColorCategory.ACCENT),
-                KeyInfo("↓", keyCode = DOWN, category = KeyColorCategory.ACCENT)
+                KeyInfo("↑", keyCode = UP, category = KeyColorCategory.ACCENT)
             ),
         listOf(
             KeyInfo("Ctrl", keyCode = CTRL, width = 1.25f, category = KeyColorCategory.MOD),
@@ -102,7 +87,7 @@ object KeyboardLayouts {
             KeyInfo("Space", keyCode = SPACE, width = 6.25f, category = KeyColorCategory.ACCENT),
             KeyInfo("Alt", keyCode = ALT, width = 1.25f, category = KeyColorCategory.MOD),
             KeyInfo("←", keyCode = LEFT, category = KeyColorCategory.ACCENT),
-            KeyInfo("↑", keyCode = UP, category = KeyColorCategory.ACCENT),
+            KeyInfo("↓", keyCode = DOWN, category = KeyColorCategory.ACCENT),
             KeyInfo("→", keyCode = RIGHT, category = KeyColorCategory.ACCENT)
         )
     )
