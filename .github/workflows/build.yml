@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -16,6 +16,188 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Sync exact Bluke baseline once
+        if: ${{ !contains(github.event.head_commit.message, 'sync: apply Bluke baseline') }}
+        run: |
+          curl -L --fail --retry 3 https://github.com/arnav-kr/Bluke/archive/refs/heads/main.tar.gz -o /tmp/bluke.tar.gz
+          mkdir /tmp/bluke
+          tar -xzf /tmp/bluke.tar.gz -C /tmp/bluke --strip-components=1
+          rsync -a --delete --exclude='.git/' /tmp/bluke/ ./
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manager = Path('app/src/main/java/dev/arnv/bluke/bluetooth/BluetoothKeyboardManager.kt')
+          text = manager.read_text()
+          marker = '\n    fun close('
+          method = r'''
+              /** Sends printable text through the existing Bluke HID keyboard path.
+               * Android IMEs remain native; only standard HID-representable characters are transmitted.
+               */
+              fun sendText(text: String): Int {
+                  var sent = 0
+                  for (ch in text.replace("\\r\\n", "\\n").replace('\\r', '\\n')) {
+                      val mapping = asciiHidMapping(ch) ?: continue
+                      val (keyCode, shifted) = mapping
+                      if (shifted) sendKey(dev.arnv.bluke.ui.KeyboardLayouts.MOD_LSHIFT, true)
+                      sendKey(keyCode, true)
+                      sendKey(keyCode, false)
+                      if (shifted) sendKey(dev.arnv.bluke.ui.KeyboardLayouts.MOD_LSHIFT, false)
+                      sent++
+                      Thread.sleep(5)
+                  }
+                  return sent
+              }
+
+              private fun asciiHidMapping(ch: Char): Pair<Int, Boolean>? {
+                  val k = dev.arnv.bluke.ui.KeyboardLayouts
+                  return when (ch) {
+                      in 'a'..'z' -> (k.KEY_A + (ch - 'a')) to false
+                      in 'A'..'Z' -> (k.KEY_A + (ch.lowercaseChar() - 'a')) to true
+                      in '1'..'9' -> (k.KEY_1 + (ch - '1')) to false
+                      '0' -> k.KEY_0 to false
+                      ' ' -> k.KEY_SPACE to false
+                      '-' -> k.KEY_MINUS to false
+                      '_' -> k.KEY_MINUS to true
+                      '=' -> k.KEY_EQUAL to false
+                      '+' -> k.KEY_EQUAL to true
+                      '[' -> k.KEY_LBRACKET to false
+                      '{' -> k.KEY_LBRACKET to true
+                      ']' -> k.KEY_RBRACKET to false
+                      '}' -> k.KEY_RBRACKET to true
+                      '\\\\' -> k.KEY_BACKSLASH to false
+                      '|' -> k.KEY_BACKSLASH to true
+                      ';' -> k.KEY_SEMICOLON to false
+                      ':' -> k.KEY_SEMICOLON to true
+                      '\'' -> k.KEY_APOSTROPHE to false
+                      '"' -> k.KEY_APOSTROPHE to true
+                      '`' -> k.KEY_GRAVE to false
+                      '~' -> k.KEY_GRAVE to true
+                      ',' -> k.KEY_COMMA to false
+                      '<' -> k.KEY_COMMA to true
+                      '.' -> k.KEY_PERIOD to false
+                      '>' -> k.KEY_PERIOD to true
+                      '/' -> k.KEY_SLASH to false
+                      '?' -> k.KEY_SLASH to true
+                      '!' -> k.KEY_1 to true
+                      '@' -> k.KEY_2 to true
+                      '#' -> k.KEY_3 to true
+                      '$' -> k.KEY_4 to true
+                      '%' -> k.KEY_5 to true
+                      '^' -> k.KEY_6 to true
+                      '&' -> k.KEY_7 to true
+                      '*' -> k.KEY_8 to true
+                      '(' -> k.KEY_9 to true
+                      ')' -> k.KEY_0 to true
+                      '\\n' -> k.KEY_ENTER to false
+                      '\\t' -> k.KEY_TAB to false
+                      else -> null
+                  }
+              }
+          '''
+          if marker not in text:
+              raise SystemExit('BluetoothKeyboardManager close() marker not found')
+          manager.write_text(text.replace(marker, '\n' + method + marker, 1))
+
+          ui = Path('app/src/main/java/dev/arnv/bluke/ui/HomeScreen.kt')
+          text = ui.read_text()
+          anchor = re.compile(r'(LazyColumn\(\s*modifier = Modifier\s*\.fillMaxSize\(\)\s*\.navigationBarsPadding\(\),)')
+          replacement = r'''\1
+                            item {
+                                NativeKeyboardInput(
+                                    enabled = isConnected,
+                                    onSend = btManager::sendText
+                                )
+                            }'''
+          text, count = anchor.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('Bluke HomeScreen LazyColumn anchor not found')
+          ui.write_text(text)
+          PY
+          cat > app/src/main/java/dev/arnv/bluke/ui/NativeKeyboardInput.kt <<'EOF'
+          package dev.arnv.bluke.ui
+
+          import androidx.compose.foundation.layout.Arrangement
+          import androidx.compose.foundation.layout.Column
+          import androidx.compose.foundation.layout.fillMaxWidth
+          import androidx.compose.foundation.layout.padding
+          import androidx.compose.foundation.text.KeyboardActions
+          import androidx.compose.foundation.text.KeyboardOptions
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.automirrored.filled.Send
+          import androidx.compose.material3.Button
+          import androidx.compose.material3.Card
+          import androidx.compose.material3.Icon
+          import androidx.compose.material3.MaterialTheme
+          import androidx.compose.material3.OutlinedTextField
+          import androidx.compose.material3.Text
+          import androidx.compose.runtime.Composable
+          import androidx.compose.runtime.getValue
+          import androidx.compose.runtime.mutableStateOf
+          import androidx.compose.runtime.remember
+          import androidx.compose.runtime.setValue
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+          import androidx.compose.ui.text.input.ImeAction
+          import androidx.compose.ui.text.input.KeyboardType
+          import androidx.compose.ui.unit.dp
+
+          @Composable
+          fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
+              var text by remember { mutableStateOf("") }
+              val keyboardController = LocalSoftwareKeyboardController.current
+              Card(modifier = Modifier.fillMaxWidth()) {
+                  Column(
+                      modifier = Modifier.padding(16.dp),
+                      verticalArrangement = Arrangement.spacedBy(10.dp)
+                  ) {
+                      Text("Native keyboard input", style = MaterialTheme.typography.titleLarge)
+                      Text(
+                          "Uses the phone's normal Android keyboard, including Gboard and voice input.",
+                          style = MaterialTheme.typography.bodyMedium
+                      )
+                      OutlinedTextField(
+                          value = text,
+                          onValueChange = { text = it },
+                          enabled = enabled,
+                          modifier = Modifier.fillMaxWidth(),
+                          minLines = 3,
+                          maxLines = 6,
+                          label = { Text("Type with your system keyboard") },
+                          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Send),
+                          keyboardActions = KeyboardActions(onSend = {
+                              if (text.isNotEmpty()) {
+                                  onSend(text)
+                                  text = ""
+                              }
+                              keyboardController?.hide()
+                          })
+                      )
+                      Button(
+                          enabled = enabled && text.isNotEmpty(),
+                          onClick = {
+                              onSend(text)
+                              text = ""
+                              keyboardController?.hide()
+                          },
+                          modifier = Modifier.fillMaxWidth()
+                      ) {
+                          Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
+                          Text("Send to computer", modifier = Modifier.padding(start = 8.dp))
+                      }
+                  }
+              }
+          }
+          EOF
+          rm -f .github/workflows/sync-bluke.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "sync: apply Bluke baseline with native IME"
+          git push
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
