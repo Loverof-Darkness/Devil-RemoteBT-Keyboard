@@ -1,6 +1,8 @@
 package dev.arnv.bluke.ui
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -270,22 +272,20 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
             ) {
                 Button(
                     enabled = enabled,
-                    onClick = { },
+                    onClick = { sendNativeBackspace() },
                     modifier = Modifier
                         .weight(1f)
                         .pointerInput(enabled) {
-                            detectTapGestures(
-                                onPress = {
-                                    if (!enabled) return@detectTapGestures
-                                    sendNativeBackspace()
-                                    isBackspaceHeld = true
-                                    try {
-                                        awaitRelease()
-                                    } finally {
-                                        isBackspaceHeld = false
-                                    }
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                sendNativeBackspace()
+                                isBackspaceHeld = true
+                                try {
+                                    waitForUpOrCancellation()
+                                } finally {
+                                    isBackspaceHeld = false
                                 }
-                            )
+                            }
                         },
                     shape = CircleShape
                 ) {
