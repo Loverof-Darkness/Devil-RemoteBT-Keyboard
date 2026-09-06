@@ -4,39 +4,36 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.clickable
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.core.net.toUri
-import dev.arnv.bluke.ui.SettingsGroup
 import dev.arnv.bluke.ui.SettingsCardGroup
+import dev.arnv.bluke.ui.SettingsGroup
 import dev.arnv.bluke.ui.SettingsItemData
 import dev.arnv.bluke.ui.theme.MyApplicationTheme
 import dev.arnv.bluke.ui.theme.getCookieShape
@@ -45,28 +42,24 @@ class AboutActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val versionName = try {
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            packageInfo.versionName ?: "1.0.1"
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
         } catch (_: Exception) {
-            "1.0.1"
+            "1.0"
         }
-        
+
         setContent {
             MyApplicationTheme {
                 val context = LocalContext.current
                 fun openUrl(url: String) {
                     context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                 }
-                
-                // Compute shapes separately to avoid sharing a stateful Shape instance across different sizes, which causes layout/shrinking bugs on activity resume.
+
                 val logoShape = getCookieShape(7)
                 val developerShape = getCookieShape(7)
-                
                 var clickCount by remember { mutableIntStateOf(0) }
                 val sharedPrefs = context.getSharedPreferences("app_prefs", MODE_PRIVATE)
-
                 val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
                 Scaffold(
@@ -96,7 +89,7 @@ class AboutActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         Surface(
                             shape = logoShape,
                             color = MaterialTheme.colorScheme.primary,
@@ -104,7 +97,7 @@ class AboutActivity : ComponentActivity() {
                                 .size(100.dp)
                                 .clickable(
                                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                                    indication = null // Hide ripple for secret click
+                                    indication = null
                                 ) {
                                     clickCount++
                                     if (clickCount == 5) {
@@ -122,14 +115,13 @@ class AboutActivity : ComponentActivity() {
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
-                        
+
                         Text(
                             text = getString(R.string.app_name),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        
                         Text(
                             text = "Version $versionName",
                             style = MaterialTheme.typography.bodyLarge,
@@ -137,15 +129,13 @@ class AboutActivity : ComponentActivity() {
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
 
-                        // Staged chips below version number
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             modifier = Modifier.padding(bottom = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // GitHub Repository Link Chip
                             Surface(
-                                onClick = { openUrl("https://github.com/arnav-kr/Bluke") },
+                                onClick = { openUrl("https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard") },
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -170,87 +160,56 @@ class AboutActivity : ComponentActivity() {
                                     )
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            // Email Link Chip
-                            Surface(
-                                onClick = { openUrl("mailto:bluke@arnv.dev") },
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Email,
-                                        contentDescription = "Contact Email",
-                                        modifier = Modifier.size(18.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Email",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
                         }
 
-                        // Developer Heading and Card content wrapped in SettingsGroup for visual consistency
                         SettingsGroup(title = "Developer") {
                             Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                     Surface(
-                                         shape = developerShape,
-                                         color = MaterialTheme.colorScheme.primary,
-                                         modifier = Modifier
-                                             .padding(end = 16.dp)
-                                             .size(44.dp)
-                                     ) {
-                                         Box(
-                                             contentAlignment = Alignment.Center,
-                                             modifier = Modifier.fillMaxSize()
-                                         ) {
-                                             Icon(
-                                                 painter = painterResource(id = R.drawable.ic_wordmark),
-                                                 contentDescription = "Wordmark logo",
-                                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                                 modifier = Modifier.size(24.dp)
-                                             )
-                                         }
-                                     }
+                                    Surface(
+                                        shape = developerShape,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .padding(end = 16.dp)
+                                            .size(44.dp)
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_wordmark),
+                                                contentDescription = "Project logo",
+                                                tint = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Arnav Kumar",
+                                            text = "Loverof-Darkness",
                                             style = MaterialTheme.typography.titleMedium,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
-                                            text = "@arnav-kr",
+                                            text = "@Loverof-Darkness",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
-                                
+
                                 Spacer(modifier = Modifier.height(16.dp))
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     PlayfulSocialButton(
-                                        onClick = { openUrl("https://github.com/arnav-kr") },
+                                        onClick = { openUrl("https://github.com/Loverof-Darkness") },
                                         label = "GitHub",
                                         icon = {
                                             Icon(
@@ -262,21 +221,38 @@ class AboutActivity : ComponentActivity() {
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
-                                    
-                                    PlayfulSocialButton(
-                                        onClick = { openUrl("https://buymeacoffee.com/arnavkr") },
-                                        label = "Buy Me a Coffee",
-                                        icon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Coffee,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
                                 }
+                            }
+                        }
+
+                        SettingsGroup(title = "Credits & Attribution") {
+                            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                                Text(
+                                    text = "Original Project — Bluke",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "This project is based on and derived from Bluke by Arnav Kumar (@arnav-kr). The original project provides the core Bluetooth HID architecture and original application functionality on which Devil RemoteBT Keyboard is built.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                                PlayfulSocialButton(
+                                    onClick = { openUrl("https://github.com/arnav-kr/Bluke") },
+                                    label = "Original Bluke",
+                                    icon = {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_github),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
                             }
                         }
 
@@ -285,9 +261,9 @@ class AboutActivity : ComponentActivity() {
                             items = listOf(
                                 SettingsItemData(
                                     title = "Changelogs",
-                                    subtitle = "History of all the changes made to the app",
+                                    subtitle = "History of all the changes made to Devil RemoteBT Keyboard",
                                     icon = { Icon(Icons.Default.History, null, tint = MaterialTheme.colorScheme.primary) },
-                                    onClick = { openUrl("https://github.com/arnav-kr/Bluke/releases") }
+                                    onClick = { openUrl("https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/releases") }
                                 ),
                                 SettingsItemData(
                                     title = "Licenses",
@@ -297,19 +273,19 @@ class AboutActivity : ComponentActivity() {
                                 ),
                                 SettingsItemData(
                                     title = "Report issue",
-                                    subtitle = "Report any issue or bug you have encountered while using the app",
+                                    subtitle = "Report an issue or bug in Devil RemoteBT Keyboard",
                                     icon = { Icon(Icons.Default.BugReport, null, tint = MaterialTheme.colorScheme.primary) },
-                                    onClick = { openUrl("https://github.com/arnav-kr/Bluke/issues/new?template=bug_report.md") }
+                                    onClick = { openUrl("https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/issues/new?template=bug_report.md") }
                                 ),
                                 SettingsItemData(
                                     title = "Feature request",
-                                    subtitle = "If you have any ideas or suggestions for the app, let us know",
+                                    subtitle = "Suggest improvements or new features for Devil RemoteBT Keyboard",
                                     icon = { Icon(Icons.Default.Lightbulb, null, tint = MaterialTheme.colorScheme.primary) },
-                                    onClick = { openUrl("https://github.com/arnav-kr/Bluke/issues/new?template=feature_request.md") }
+                                    onClick = { openUrl("https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/issues/new?template=feature_request.md") }
                                 )
                             )
                         )
-                        
+
                         Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
