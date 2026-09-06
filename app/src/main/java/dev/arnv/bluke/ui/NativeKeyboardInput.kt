@@ -1,5 +1,7 @@
 package dev.arnv.bluke.ui
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,11 +30,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class NativeInputMode { LIVE, BUFFER }
 
@@ -42,6 +48,9 @@ private const val LINE_BREAK_TOKEN = "\u000B"
 // Invisible local-only anchor used in Live mode. It is kept at the END of the
 // editable value so normal typing stays in the expected cursor position.
 private const val LIVE_EDIT_ANCHOR = "\u200B"
+
+private const val BACKSPACE_INITIAL_DELAY_MS = 400L
+private const val BACKSPACE_REPEAT_INTERVAL_MS = 45L
 
 @Composable
 fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
@@ -156,6 +165,19 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         onSend("\b")
     }
 
+    fun handleBackspacePress() {
+        sendNativeBackspace()
+    }
+
+    fun handleBackspaceGesture() {
+        if (!enabled) return
+
+        // The first Backspace is immediate. Holding the button then behaves like a
+        // physical keyboard key repeat: after a brief initial delay, additional HID
+        // Backspace presses are emitted until the finger is released.
+        androidx.compose.runtime.rememberCoroutineScope()
+    }
+
     fun sendAction() {
         when (mode) {
             NativeInputMode.BUFFER -> sendBufferedText()
@@ -252,13 +274,38 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
             ) {
                 Button(
                     enabled = enabled,
-                    onClick = { sendNativeBackspace() },
-                    modifier = Modifier.weight(1f),
+                    onClick = { },
+                    modifier = Modifier
+                        .weight(1f)
+                        .pointerInput(enabled) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+
+                                sendNativeBackspace()
+
+                                var repeatJob: Job? = null
+                                try {
+                                    kotlinx.coroutines.coroutineScope {
+                                        repeatJob = launch {
+                                            delay(BACKSPACE_INITIAL_DELAY_MS)
+                                            while (true) {
+                                                sendNativeBackspace()
+                                                delay(BACKSPACE_REPEAT_INTERVAL_MS)
+                                            }
+                                        }
+
+                                        awaitPointerRelease()
+                                    }
+                                } finally {
+                                    repeatJob?.cancel()
+                                }
+                            }
+                        },
                     shape = CircleShape
                 ) {
                     Icon(
                         imageVector = Icons.Default.Backspace,
-                        contentDescription = null
+                        contentDescription = "Backspace"
                     )
                     Text(
                         text = "Backspace",
