@@ -1,13 +1,18 @@
-Bluke lets you use your Android phone as a wireless keyboard, mouse trackpad, and game controller.
+Devil RemoteBT Keyboard turns an Android phone into a wireless Bluetooth HID keyboard, mouse/trackpad, numpad, and game controller.
 
-It utilizes your phone's built-in Bluetooth HID profile and acts like how a typical input device would work.
+It uses the phone's built-in Bluetooth HID profile and communicates directly with compatible devices without requiring a host-side server application.
 
-No installing server apps or background clients, just pair, connect and it works.
+What you get:
+* Keyboard, trackpad, numpad, and gamepad functionality inherited from the upstream Bluke project.
+* Native Android text input using Gboard and other system keyboards.
+* Live typing mode for continuous input and Buffer mode for composing before sending.
+* Messenger-style Send button with automatic clearing after submission.
+* Dedicated Line Break / Shift+Enter control and direct Backspace support.
+* Reliable paced HID text transmission for better compatibility across hosts.
+* Mechanical keyboard sound presets, haptics, Material You support, and customizable themes.
+* A dedicated Hellfire red-accented theme while retaining the existing palette options.
 
-Features:
-* Keyboard mode with real mechanical keyboard feel (Holy Panda, Alpaca, Gateron Black Ink, Cherry MX, Topre, Blue Alps, and more).
-* Trackpad mode along with numpad to control your devices.
-* Gamepad mode with customizable layouts and toggles for Xbox and PS5 button styles.
-* Material You Dynamic Theme, Customizations and much more.
+Devil RemoteBT Keyboard is a maintained, modified version of the open-source Bluke project by Arnav Kumar (@arnav-kr).
 
-Bluke is 100% offline, everything stays local, no tracking, and it is fully open source. Source code can be accessed at: https://github.com/arnav-kr/Bluke
+The project remains licensed under GNU AGPL-3.0 and is developed openly. Source code and final releases are published at:
+https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard
