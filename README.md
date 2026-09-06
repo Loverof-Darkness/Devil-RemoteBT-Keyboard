@@ -14,6 +14,18 @@ A Bluetooth HID keyboard/controller for Android, based on the open-source **Bluk
 
 ---
 
+## Download
+
+### Latest release
+
+**[Download the latest Devil RemoteBT Keyboard APK →](https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/releases/latest)**
+
+The link above always opens the **latest published GitHub Release**, where the final APK and its release files are hosted. This is the recommended download location for end users.
+
+For release history, older versions, source archives, and checksums, visit the [full Releases page](https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/releases).
+
+---
+
 ## About
 
 **Devil RemoteBT Keyboard** is a customized, maintained derivative of [Bluke](https://github.com/arnav-kr/Bluke), a native Android Bluetooth HID application that turns an Android device into a wireless keyboard/controller without requiring host-side companion software.
