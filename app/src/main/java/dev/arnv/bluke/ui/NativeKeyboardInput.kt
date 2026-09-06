@@ -64,12 +64,17 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         liveSourceText = text
     }
 
+    fun clearInput() {
+        text = ""
+        liveSourceText = ""
+    }
+
     fun sendBufferedText() {
         if (!enabled || text.isEmpty()) return
         // WhatsApp/Messenger-style Send: transmit the composed message, then Enter.
         onSend(text + "\n")
-        text = ""
-        liveSourceText = ""
+        // Clear immediately so the sent message cannot remain in the composer.
+        clearInput()
         keyboardController?.hide()
     }
 
@@ -134,6 +139,8 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                 if (enabled) {
                     // Send button is the HID Enter action in Live mode.
                     applyLiveTextChange(text + "\n")
+                    // Clear the Live composer after the Enter/send action as well.
+                    clearInput()
                     keyboardController?.hide()
                 }
             }
