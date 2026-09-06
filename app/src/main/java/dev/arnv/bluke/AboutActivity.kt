@@ -209,7 +209,7 @@ class AboutActivity : ComponentActivity() {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     PlayfulSocialButton(
-                                        onClick = { openUrl("https://github.com/Loverof-Darkness") },
+                                        onClick = { openUrl("https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard") },
                                         label = "GitHub",
                                         icon = {
                                             Icon(

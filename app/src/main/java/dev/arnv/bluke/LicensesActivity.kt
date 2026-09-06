@@ -159,7 +159,7 @@ class LicensesActivity : ComponentActivity() {
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column {
                                             Text(
-                                                text = "Bluke",
+                                                text = "Devil RemoteBT Keyboard",
                                                 fontWeight = FontWeight.Bold,
                                                 style = MaterialTheme.typography.titleLarge,
                                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -193,7 +193,7 @@ class LicensesActivity : ComponentActivity() {
                                             color = MaterialTheme.colorScheme.primary, 
                                             fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier.clickable {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/arnav-kr/Bluke".toUri()))
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard".toUri()))
                                             }
                                         )
                                         Text(
@@ -201,7 +201,7 @@ class LicensesActivity : ComponentActivity() {
                                             color = MaterialTheme.colorScheme.primary, 
                                             fontWeight = FontWeight.SemiBold,
                                             modifier = Modifier.clickable {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, "https://raw.githubusercontent.com/arnav-kr/Bluke/main/LICENSE".toUri()))
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, "https://raw.githubusercontent.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/main/LICENSE".toUri()))
                                             }
                                         )
                                     }
