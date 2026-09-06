@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -36,6 +37,9 @@ private enum class NativeInputMode {
     LIVE,
     BUFFER
 }
+
+// Internal control character used only to request HID Shift+Enter.
+private const val LINE_BREAK_TOKEN = "\u000B"
 
 @Composable
 fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
@@ -62,7 +66,8 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
 
     fun sendBufferedText() {
         if (!enabled || text.isEmpty()) return
-        onSend(text)
+        // WhatsApp/Messenger-style Send: transmit the composed message, then Enter.
+        onSend(text + "\n")
         text = ""
         liveSourceText = ""
         keyboardController?.hide()
@@ -101,11 +106,36 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         text = newText
     }
 
-    fun handleImeAction() {
+    fun sendLineBreak() {
+        if (!enabled) return
+
+        when (mode) {
+            NativeInputMode.LIVE -> {
+                // Locally create a new line and send the HID equivalent of Shift+Enter.
+                val newText = text + "\n"
+                val oldText = liveSourceText
+                text = newText
+                liveSourceText = newText
+                if (newText.startsWith(oldText)) {
+                    onSend(LINE_BREAK_TOKEN)
+                }
+            }
+            NativeInputMode.BUFFER -> {
+                text += "\n"
+                liveSourceText = text
+            }
+        }
+    }
+
+    fun sendAction() {
         when (mode) {
             NativeInputMode.BUFFER -> sendBufferedText()
             NativeInputMode.LIVE -> {
-                if (enabled) applyLiveTextChange(text + "\n")
+                if (enabled) {
+                    // Send button is the HID Enter action in Live mode.
+                    applyLiveTextChange(text + "\n")
+                    keyboardController?.hide()
+                }
             }
         }
     }
@@ -118,8 +148,8 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
             Text("Native keyboard input", style = MaterialTheme.typography.titleLarge)
             Text(
                 text = when (mode) {
-                    NativeInputMode.LIVE -> "Live mode: typing and end-of-text backspace are sent to the computer immediately."
-                    NativeInputMode.BUFFER -> "Buffer mode: type here first, then press Send to transmit the complete message."
+                    NativeInputMode.LIVE -> "Live mode: typing and end-of-text backspace are sent immediately."
+                    NativeInputMode.BUFFER -> "Buffer mode: compose the message first, then press Send."
                 },
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -168,40 +198,38 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Send
+                    // Keep the system keyboard in multiline editing mode. Sending is done by the in-field button.
+                    imeAction = ImeAction.Default
                 ),
-                keyboardActions = KeyboardActions(onSend = { handleImeAction() })
+                keyboardActions = KeyboardActions.Default,
+                trailingIcon = {
+                    IconButton(
+                        enabled = enabled && when (mode) {
+                            NativeInputMode.LIVE -> true
+                            NativeInputMode.BUFFER -> text.isNotEmpty()
+                        },
+                        onClick = { sendAction() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send / Enter"
+                        )
+                    }
+                }
             )
 
             Button(
-                enabled = enabled && when (mode) {
-                    NativeInputMode.LIVE -> true
-                    NativeInputMode.BUFFER -> text.isNotEmpty()
-                },
-                onClick = {
-                    when (mode) {
-                        NativeInputMode.BUFFER -> sendBufferedText()
-                        NativeInputMode.LIVE -> {
-                            applyLiveTextChange(text + "\n")
-                            keyboardController?.hide()
-                        }
-                    }
-                },
+                enabled = enabled,
+                onClick = { sendLineBreak() },
                 modifier = Modifier.fillMaxWidth(),
                 shape = CircleShape
             ) {
                 Icon(
-                    imageVector = when (mode) {
-                        NativeInputMode.LIVE -> Icons.Default.KeyboardReturn
-                        NativeInputMode.BUFFER -> Icons.AutoMirrored.Filled.Send
-                    },
+                    imageVector = Icons.Default.KeyboardReturn,
                     contentDescription = null
                 )
                 Text(
-                    text = when (mode) {
-                        NativeInputMode.LIVE -> "Enter"
-                        NativeInputMode.BUFFER -> "Send"
-                    },
+                    text = "Line break (Shift+Enter)",
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
