@@ -35,7 +35,7 @@ private val DarkColorScheme =
     onBackground = Color(0xFFE6E0E9),
     surface = Color(0xFF141218),
     onSurface = Color(0xFFE6E0E9),
-    surfaceVariant = Color(0xFF2B2930), // subtle card color
+    surfaceVariant = Color(0xFF2B2930),
     onSurfaceVariant = Color(0xFFCBC4D0),
     outline = Color(0xFF938F99)
   )
@@ -48,16 +48,63 @@ private val LightColorScheme =
     onPrimaryContainer = Color(0xFF001c3b),
     secondary = PurpleGrey40,
     tertiary = Pink40,
+  )
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+private val HellfireDarkColorScheme =
+  darkColorScheme(
+    primary = Color(0xFFFF3B30),
     onPrimary = Color.White,
+    primaryContainer = Color(0xFF6A0E12),
+    onPrimaryContainer = Color(0xFFFFDAD6),
+    secondary = Color(0xFFFF766C),
+    onSecondary = Color(0xFF3B0807),
+    secondaryContainer = Color(0xFF5C1C18),
+    onSecondaryContainer = Color(0xFFFFDAD5),
+    tertiary = Color(0xFFFFB74D),
+    onTertiary = Color(0xFF2B1600),
+    tertiaryContainer = Color(0xFF4D2A0A),
+    onTertiaryContainer = Color(0xFFFFDDB5),
+    error = Color(0xFFFFB4AB),
+    onError = Color(0xFF690005),
+    errorContainer = Color(0xFF93000A),
+    onErrorContainer = Color(0xFFFFDAD6),
+    background = Color(0xFF0D0809),
+    onBackground = Color(0xFFF5DEDD),
+    surface = Color(0xFF0D0809),
+    onSurface = Color(0xFFF5DEDD),
+    surfaceVariant = Color(0xFF261415),
+    onSurfaceVariant = Color(0xFFE3BDBD),
+    outline = Color(0xFFA98A8A),
+    inverseSurface = Color(0xFFF5DEDD),
+    inverseOnSurface = Color(0xFF221A1A),
+    inversePrimary = Color(0xFF8C0009)
+  )
+
+private val HellfireLightColorScheme =
+  lightColorScheme(
+    primary = Color(0xFFB3261E),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDAD6),
+    onPrimaryContainer = Color(0xFF410002),
+    secondary = Color(0xFF8C4A43),
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFDAD5),
+    onSecondaryContainer = Color(0xFF35100D),
+    tertiary = Color(0xFF8A4F00),
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiaryContainer = Color(0xFFFFDDB5),
+    onTertiaryContainer = Color(0xFF2B1600),
+    error = Color(0xFFBA1A1A),
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    background = Color(0xFFFFF8F7),
+    onBackground = Color(0xFF241A19),
+    surface = Color(0xFFFFF8F7),
+    onSurface = Color(0xFF241A19),
+    surfaceVariant = Color(0xFFF5DDDB),
+    onSurfaceVariant = Color(0xFF554341),
+    outline = Color(0xFF857370)
   )
 
 @Composable
@@ -82,10 +129,9 @@ fun MyApplicationTheme(
       androidx.compose.runtime.mutableStateOf(sharedPrefs.getBoolean("high_contrast_mode", false))
   }
   var paletteStyle by androidx.compose.runtime.remember {
-      androidx.compose.runtime.mutableStateOf(sharedPrefs.getString("palette_style", "Tonal Spot") ?: "Tonal Spot")
+      androidx.compose.runtime.mutableStateOf(sharedPrefs.getString("palette_style", "Hellfire") ?: "Hellfire")
   }
   
-  // Listen for changes
   androidx.compose.runtime.DisposableEffect(context) {
       val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
           when (key) {
@@ -93,7 +139,7 @@ fun MyApplicationTheme(
               "accent_color_index" -> accentColorIndex = prefs.getInt("accent_color_index", 0)
               "theme_mode" -> themeMode = prefs.getInt("theme_mode", 0)
               "high_contrast_mode" -> highContrastMode = prefs.getBoolean("high_contrast_mode", false)
-              "palette_style" -> paletteStyle = prefs.getString("palette_style", "Tonal Spot") ?: "Tonal Spot"
+              "palette_style" -> paletteStyle = prefs.getString("palette_style", "Hellfire") ?: "Hellfire"
           }
       }
       sharedPrefs.registerOnSharedPreferenceChangeListener(listener)
@@ -102,6 +148,7 @@ fun MyApplicationTheme(
 
   val isMonochrome = paletteStyle == "Monochrome"
   val isVibrant = paletteStyle == "Vibrant"
+  val isHellfire = paletteStyle == "Hellfire"
 
   val baseColor = if (isMonochrome) {
       if (themeMode == 2 || (themeMode == 0 && darkTheme)) Color(0xFF6E6E6E) else Color(0xFF424242)
@@ -110,13 +157,22 @@ fun MyApplicationTheme(
   }
 
   val useDarkTheme = when (themeMode) {
-      1 -> false // Off
-      2 -> true  // On
-      else -> darkTheme // System
+      1 -> false
+      2 -> true
+      else -> darkTheme
   }
 
   val colorScheme =
     when {
+      isHellfire -> if (useDarkTheme) {
+          if (highContrastMode) {
+              HellfireDarkColorScheme.copy(
+                  background = Color.Black,
+                  surface = Color.Black,
+                  surfaceVariant = Color(0xFF1A0C0E)
+              )
+          } else HellfireDarkColorScheme
+      } else HellfireLightColorScheme
       dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         val baseScheme = if (useDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         if (useDarkTheme && highContrastMode) {
