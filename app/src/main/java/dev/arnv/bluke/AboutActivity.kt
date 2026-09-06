@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -108,11 +109,10 @@ class AboutActivity : ComponentActivity() {
                                     }
                                 }
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            Image(
+                                painter = painterResource(id = R.mipmap.ic_launcher),
                                 contentDescription = "App Logo",
-                                modifier = Modifier.fillMaxSize(),
-                                tint = MaterialTheme.colorScheme.onPrimary
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
 
