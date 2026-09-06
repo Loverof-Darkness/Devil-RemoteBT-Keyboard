@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea or new feature for Bluke
+about: Suggest an idea or new feature for Devil RemoteBT Keyboard
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
@@ -11,7 +11,7 @@ assignees: ''
 A clear and concise description of what the limitation is.
 
 **Describe the solution you'd like**
-A clear description of the feature or behavior you would like added (e.g., a specific physical keyboard layout, new mechanical switch sound profiles, specific haptic profiles, or connection management options).
+A clear description of the feature or behavior you would like added to Devil RemoteBT Keyboard.
 
 **Describe alternatives you've considered**
 Any workarounds or alternative solutions you have tried.
