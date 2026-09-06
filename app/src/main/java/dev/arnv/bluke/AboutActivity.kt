@@ -252,6 +252,28 @@ class AboutActivity : ComponentActivity() {
                             }
                         }
 
+                        SettingsGroup(title = "Legal Notice") {
+                            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                                Text(
+                                    text = "Devil RemoteBT Keyboard is a modified version of Bluke. Modifications are maintained in this repository and include the native Android system-keyboard workflow and related usability, theme, identity, and reliability changes.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "This project is distributed under the GNU Affero General Public License v3 (AGPL-3.0). The original Bluke copyright and attribution remain with the original project; original additions and modifications are maintained by Loverof-Darkness.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No warranty is provided to the extent permitted by the AGPL-3.0. The complete license text is available in the Licenses section, and the corresponding source is available in the public GitHub repository.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
                         SettingsCardGroup(
                             title = "App",
                             items = listOf(
