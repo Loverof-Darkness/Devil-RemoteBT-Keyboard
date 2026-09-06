@@ -1,2 +1,11 @@
-- New Gamepad 🎮 feature is enabled by default
-- Optimized Dependencies, app is now more less in size
+Devil RemoteBT Keyboard — current release changes
+
+- Added native Android system-keyboard input for Gboard and other IMEs.
+- Added Live and Buffer text-entry modes.
+- Added messenger-style in-field Send action with automatic clearing.
+- Replaced the bottom Enter action with Line Break / Shift+Enter behavior.
+- Added a dedicated Backspace control with press-and-hold repeat.
+- Improved native HID text reliability with serialized, paced reports.
+- Added the Hellfire red-accented visual theme while retaining existing palette choices.
+- Updated app identity, About, Credits, Licenses, and project documentation.
+- Preserved explicit attribution to the upstream Bluke project and AGPL-3.0 licensing.
