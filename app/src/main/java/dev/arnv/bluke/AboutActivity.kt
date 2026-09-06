@@ -167,20 +167,17 @@ class AboutActivity : ComponentActivity() {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Surface(
                                         shape = developerShape,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = Color.Transparent,
                                         modifier = Modifier
                                             .padding(end = 16.dp)
-                                            .size(44.dp)
+                                            .size(56.dp)
                                     ) {
                                         Box(
                                             contentAlignment = Alignment.Center,
                                             modifier = Modifier.fillMaxSize()
                                         ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_wordmark),
-                                                contentDescription = "Project logo",
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(24.dp)
+                                            DeveloperLogoV2(
+                                                modifier = Modifier.fillMaxSize()
                                             )
                                         }
                                     }
@@ -198,7 +195,6 @@ class AboutActivity : ComponentActivity() {
                                         )
                                     }
                                 }
-
                                 Spacer(modifier = Modifier.height(16.dp))
                                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f))
                                 Spacer(modifier = Modifier.height(16.dp))
