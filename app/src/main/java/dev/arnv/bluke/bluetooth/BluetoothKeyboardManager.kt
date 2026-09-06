@@ -1156,6 +1156,24 @@ class BluetoothKeyboardManager(private val context: Context) {
 
     /** Extra native Android IME bridge. Bluke's original HID path remains unchanged. */
     fun sendText(text: String): Int {
+        // Internal control token: native UI requests a real HID Shift+Enter,
+        // rather than the plain Enter mapping used for message submission.
+        if (text == "\u000B") {
+            managerScope.launch(Dispatchers.IO) {
+                nativeTextSendMutex.withLock {
+                    sendKey(0xE1, true)  // Left Shift
+                    delay(10)
+                    sendKey(0x28, true)  // Enter
+                    delay(10)
+                    sendKey(0x28, false)
+                    delay(10)
+                    sendKey(0xE1, false)
+                    delay(10)
+                }
+            }
+            return 1
+        }
+
         val mappings = text
             .replace("\r\n", "\n")
             .replace('\r', '\n')
