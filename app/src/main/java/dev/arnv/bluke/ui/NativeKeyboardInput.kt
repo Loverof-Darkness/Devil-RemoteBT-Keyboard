@@ -88,6 +88,16 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
 
         if (newText == oldText) return
 
+        // Gboard/Android IMEs can report deletion of the dedicated trailing line break
+        // as a one-character edit. Handle it explicitly so that the matching HID
+        // Backspace is emitted even though the line break itself was sent via a control token.
+        if (oldText.endsWith("\n") && newText == oldText.dropLast(1)) {
+            onSend("\b")
+            liveSourceText = newText
+            text = newText
+            return
+        }
+
         if (newText.startsWith(oldText)) {
             val appended = newText.substring(oldText.length)
             if (appended.isNotEmpty()) onSend(appended)
