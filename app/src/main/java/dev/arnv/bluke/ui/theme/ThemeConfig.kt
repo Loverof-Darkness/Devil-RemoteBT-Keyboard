@@ -7,7 +7,7 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 
 val AccentColors = listOf(
-    Color(0xFF0A3D91), // Bluke Blue
+    Color(0xFFFF2B2B), // Hellfire Red
     Color(0xFFD32F2F), // Red
     Color(0xFFC2185B), // Pink
     Color(0xFF7B1FA2), // Purple
