@@ -41,6 +41,11 @@ private enum class NativeInputMode {
 // Internal control character used only to request HID Shift+Enter.
 private const val LINE_BREAK_TOKEN = "\u000B"
 
+// Live mode keeps one zero-width editing anchor so Gboard still produces a text-edit
+// callback when the visible composer is empty. That lets a native Backspace continue
+// deleting content that was already present on the remote host.
+private const val LIVE_EDIT_ANCHOR = "\u200B"
+
 @Composable
 fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
     val context = LocalContext.current
@@ -55,18 +60,41 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
             }
         )
     }
-    var text by rememberSaveable { mutableStateOf("") }
-    var liveSourceText by rememberSaveable { mutableStateOf("") }
+
+    var text by rememberSaveable {
+        mutableStateOf(if (mode == NativeInputMode.LIVE) LIVE_EDIT_ANCHOR else "")
+    }
+    var liveSourceText by rememberSaveable {
+        mutableStateOf(if (mode == NativeInputMode.LIVE) LIVE_EDIT_ANCHOR else "")
+    }
+    var restoringLiveAnchor by remember { mutableStateOf(false) }
 
     fun selectMode(newMode: NativeInputMode) {
+        if (newMode == mode) return
+
+        when {
+            newMode == NativeInputMode.LIVE -> {
+                val visibleText = text.removePrefix(LIVE_EDIT_ANCHOR)
+                text = LIVE_EDIT_ANCHOR + visibleText
+                liveSourceText = text
+            }
+            mode == NativeInputMode.LIVE -> {
+                val visibleText = text.removePrefix(LIVE_EDIT_ANCHOR)
+                text = visibleText
+                liveSourceText = visibleText
+            }
+            else -> {
+                liveSourceText = text
+            }
+        }
+
         mode = newMode
         prefs.edit().putString("native_input_mode", newMode.name).apply()
-        liveSourceText = text
     }
 
     fun clearInput() {
-        text = ""
-        liveSourceText = ""
+        text = if (mode == NativeInputMode.LIVE) LIVE_EDIT_ANCHOR else ""
+        liveSourceText = text
     }
 
     fun sendBufferedText() {
@@ -79,6 +107,8 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
     }
 
     fun applyLiveTextChange(newText: String) {
+        if (restoringLiveAnchor) return
+
         val oldText = liveSourceText
         if (!enabled) {
             liveSourceText = newText
@@ -88,13 +118,25 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
 
         if (newText == oldText) return
 
+        // The anchor is never meant to reach the remote host. If Gboard deletes it
+        // while the visible composer is empty, immediately restore it and forward
+        // exactly one Backspace to the remote HID host.
+        if (oldText == LIVE_EDIT_ANCHOR && newText.isEmpty()) {
+            onSend("\b")
+            restoringLiveAnchor = true
+            text = LIVE_EDIT_ANCHOR
+            liveSourceText = LIVE_EDIT_ANCHOR
+            restoringLiveAnchor = false
+            return
+        }
+
         // Gboard/Android IMEs can report deletion of the dedicated trailing line break
         // as a one-character edit. Handle it explicitly so that the matching HID
         // Backspace is emitted even though the line break itself was sent via a control token.
         if (oldText.endsWith("\n") && newText == oldText.dropLast(1)) {
             onSend("\b")
-            liveSourceText = newText
-            text = newText
+            liveSourceText = newText.ifEmpty { LIVE_EDIT_ANCHOR }
+            text = liveSourceText
             return
         }
 
@@ -110,15 +152,40 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
 
             val deletedCount = oldText.length - commonPrefix
             if (deletedCount > 0) {
-                onSend("\b".repeat(deletedCount))
+                // Never allow deletion of the internal anchor itself to become an
+                // additional remote Backspace. The anchor is local-only.
+                val remoteDeletedCount = if (oldText.startsWith(LIVE_EDIT_ANCHOR)) {
+                    minOf(deletedCount, oldText.length - LIVE_EDIT_ANCHOR.length)
+                } else {
+                    deletedCount
+                }
+                if (remoteDeletedCount > 0) {
+                    onSend("\b".repeat(remoteDeletedCount))
+                }
             }
 
             val replacement = newText.substring(commonPrefix)
-            if (replacement.isNotEmpty()) onSend(replacement)
+            if (replacement.isNotEmpty() && !replacement.startsWith(LIVE_EDIT_ANCHOR)) {
+                onSend(replacement)
+            }
         }
 
-        liveSourceText = newText
-        text = newText
+        // Keep the anchor in the local source state if an IME edit removed everything.
+        if (newText.isEmpty()) {
+            restoringLiveAnchor = true
+            text = LIVE_EDIT_ANCHOR
+            liveSourceText = LIVE_EDIT_ANCHOR
+            restoringLiveAnchor = false
+        } else if (!newText.startsWith(LIVE_EDIT_ANCHOR)) {
+            val normalized = LIVE_EDIT_ANCHOR + newText
+            restoringLiveAnchor = true
+            text = normalized
+            liveSourceText = normalized
+            restoringLiveAnchor = false
+        } else {
+            liveSourceText = newText
+            text = newText
+        }
     }
 
     fun sendLineBreak() {
@@ -127,7 +194,8 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         when (mode) {
             NativeInputMode.LIVE -> {
                 // Locally create a new line and send the HID equivalent of Shift+Enter.
-                val newText = text + "\n"
+                val visibleText = text.removePrefix(LIVE_EDIT_ANCHOR)
+                val newText = LIVE_EDIT_ANCHOR + visibleText + "\n"
                 val oldText = liveSourceText
                 text = newText
                 liveSourceText = newText
@@ -165,7 +233,7 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
             Text("Native keyboard input", style = MaterialTheme.typography.titleLarge)
             Text(
                 text = when (mode) {
-                    NativeInputMode.LIVE -> "Live mode: typing and end-of-text backspace are sent immediately."
+                    NativeInputMode.LIVE -> "Live mode: typing and backspace are sent immediately."
                     NativeInputMode.BUFFER -> "Buffer mode: compose the message first, then press Send."
                 },
                 style = MaterialTheme.typography.bodyMedium
