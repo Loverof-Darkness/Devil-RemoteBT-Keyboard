@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import dev.arnv.bluke.ui.SettingsCardGroup
 import dev.arnv.bluke.ui.SettingsItemData
@@ -46,13 +48,14 @@ class LookAndFeelActivity : ComponentActivity() {
             MyApplicationTheme {
                 var dynamicColor by remember { mutableStateOf(sharedPrefs.getBoolean("dynamic_color", isDynamicColorDefault)) }
                 var accentColorIndex by remember { mutableIntStateOf(sharedPrefs.getInt("accent_color_index", 0)) }
-                var paletteStyleState by remember { mutableStateOf(sharedPrefs.getString("palette_style", "Tonal Spot") ?: "Tonal Spot") }
+                var paletteStyleState by remember { mutableStateOf(sharedPrefs.getString("palette_style", "Hellfire") ?: "Hellfire") }
                 
                 var hapticsEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("haptics_enabled", true)) }
                 var keySoundEnabled by remember { mutableStateOf(sharedPrefs.getBoolean("key_sound_enabled", true)) }
                 
                 var showPaletteDialog by remember { mutableStateOf(false) }
                 val themeMode by themeModeState
+                val hellfireActive = paletteStyleState == "Hellfire"
                 
                 val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
                 
@@ -83,103 +86,105 @@ class LookAndFeelActivity : ComponentActivity() {
                     ) {
                         Spacer(Modifier.height(8.dp))
                         
-                        // Top illustration mock
-                        Icon(
-                            Icons.Default.FormatPaint, 
-                            contentDescription = null, 
-                            modifier = Modifier.size(100.dp).align(Alignment.CenterHorizontally), 
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        Image(
+                            painter = painterResource(id = R.mipmap.ic_launcher),
+                            contentDescription = "Hellfire theme",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .align(Alignment.CenterHorizontally)
                         )
                         
                         if (!dynamicColor || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                            val pageCount = (AccentColors.size + 3) / 4
-                            val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { pageCount })
-                            
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                androidx.compose.foundation.pager.HorizontalPager(
-                                    state = pagerState,
-                                    contentPadding = PaddingValues(horizontal = 24.dp),
-                                    pageSpacing = 16.dp
-                                ) { page ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
-                                        val startIndex = page * 4
-                                        for (i in 0 until 4) {
-                                            val index = startIndex + i
-                                            if (index < AccentColors.size) {
-                                                val color = AccentColors[index]
-                                                val isSelected = accentColorIndex == index
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(64.dp)
-                                                        .clip(CircleShape)
-                                                        .background(color)
-                                                        .clickable {
-                                                            accentColorIndex = index
-                                                            sharedPrefs.edit { putInt("accent_color_index", index) }
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    if (isSelected) {
-                                                        Surface(
-                                                            shape = CircleShape,
-                                                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
-                                                            modifier = Modifier.size(32.dp)
-                                                        ) {
-                                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.padding(6.dp), tint = MaterialTheme.colorScheme.onSurface)
+                            if (!hellfireActive) {
+                                val pageCount = (AccentColors.size + 3) / 4
+                                val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { pageCount })
+                                
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    androidx.compose.foundation.pager.HorizontalPager(
+                                        state = pagerState,
+                                        contentPadding = PaddingValues(horizontal = 24.dp),
+                                        pageSpacing = 16.dp
+                                    ) { page ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceEvenly
+                                        ) {
+                                            val startIndex = page * 4
+                                            for (i in 0 until 4) {
+                                                val index = startIndex + i
+                                                if (index < AccentColors.size) {
+                                                    val color = AccentColors[index]
+                                                    val isSelected = accentColorIndex == index
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(64.dp)
+                                                            .clip(CircleShape)
+                                                            .background(color)
+                                                            .clickable {
+                                                                accentColorIndex = index
+                                                                sharedPrefs.edit { putInt("accent_color_index", index) }
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Surface(
+                                                                shape = CircleShape,
+                                                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f),
+                                                                modifier = Modifier.size(32.dp)
+                                                            ) {
+                                                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.padding(6.dp), tint = MaterialTheme.colorScheme.onSurface)
+                                                            }
                                                         }
                                                     }
+                                                } else {
+                                                    Spacer(modifier = Modifier.size(64.dp))
                                                 }
-                                            } else {
-                                                Spacer(modifier = Modifier.size(64.dp))
                                             }
                                         }
                                     }
-                                }
-                                
-                                Spacer(modifier = Modifier.height(16.dp))
-                                
-                                val cookieShape7 = getCookieShape(7)
-                                val pebbleShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 35)
-                                val archShapeRound = androidx.compose.foundation.shape.RoundedCornerShape(
-                                    topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp
-                                )
-                                val cookieShape5 = getCookieShape(5)
+                                    
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    val cookieShape7 = getCookieShape(7)
+                                    val pebbleShape = androidx.compose.foundation.shape.RoundedCornerShape(percent = 35)
+                                    val archShapeRound = androidx.compose.foundation.shape.RoundedCornerShape(
+                                        topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 4.dp
+                                    )
+                                    val cookieShape5 = getCookieShape(5)
 
-                                val paginationShapes = listOf(cookieShape7, pebbleShape, archShapeRound, cookieShape5)
-                                val coroutineScope = rememberCoroutineScope()
+                                    val paginationShapes = listOf(cookieShape7, pebbleShape, archShapeRound, cookieShape5)
+                                    val coroutineScope = rememberCoroutineScope()
 
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    repeat(pageCount) { iteration ->
-                                        val isSelected = pagerState.currentPage == iteration
-                                        val color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                                        val shape = if (isSelected) {
-                                            paginationShapes.getOrElse(iteration) { cookieShape7 }
-                                        } else {
-                                            CircleShape
-                                        }
-                                        val size = if (isSelected) 14.dp else 10.dp
-                                        Box(
-                                            modifier = Modifier
-                                                .padding(6.dp)
-                                                .size(size)
-                                                .clip(shape)
-                                                .background(color)
-                                                .clickable {
-                                                    coroutineScope.launch {
-                                                        pagerState.animateScrollToPage(iteration)
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        repeat(pageCount) { iteration ->
+                                            val isSelected = pagerState.currentPage == iteration
+                                            val color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                            val shape = if (isSelected) {
+                                                paginationShapes.getOrElse(iteration) { cookieShape7 }
+                                            } else {
+                                                CircleShape
+                                            }
+                                            val size = if (isSelected) 14.dp else 10.dp
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(6.dp)
+                                                    .size(size)
+                                                    .clip(shape)
+                                                    .background(color)
+                                                    .clickable {
+                                                        coroutineScope.launch {
+                                                            pagerState.animateScrollToPage(iteration)
+                                                        }
                                                     }
-                                                }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -190,12 +195,16 @@ class LookAndFeelActivity : ComponentActivity() {
                             items = listOf(
                                 SettingsItemData(
                                     title = "Dynamic colors",
-                                    subtitle = "Automatically set the app theme according to the device wallpaper",
+                                    subtitle = if (hellfireActive) {
+                                        "Hellfire palette is active; device wallpaper colors are ignored"
+                                    } else {
+                                        "Automatically set the app theme according to the device wallpaper"
+                                    },
                                     icon = { Icon(Icons.Default.FormatPaint, null, tint = MaterialTheme.colorScheme.primary) },
                                     action = {
                                         Switch(
                                             checked = dynamicColor,
-                                            enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
+                                            enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !hellfireActive,
                                             onCheckedChange = { 
                                                 dynamicColor = it
                                                 sharedPrefs.edit { putBoolean("dynamic_color", it) }
@@ -218,7 +227,7 @@ class LookAndFeelActivity : ComponentActivity() {
                                 title = { Text("Palette style") },
                                 text = {
                                     Column {
-                                        listOf("Tonal Spot", "Vibrant", "Expressive", "Rainbow", "Fruit Salad", "Fidelity", "Content", "Neutral", "Monochrome").forEach { option ->
+                                        listOf("Hellfire", "Tonal Spot", "Vibrant", "Expressive", "Rainbow", "Fruit Salad", "Fidelity", "Content", "Neutral", "Monochrome").forEach { option ->
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.fillMaxWidth().clickable { 
