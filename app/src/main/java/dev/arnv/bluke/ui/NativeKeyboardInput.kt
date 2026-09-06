@@ -1,5 +1,6 @@
 package dev.arnv.bluke.ui
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -176,8 +177,6 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         }
     }
 
-    // Repeats are driven by a normal Compose coroutine rather than the restricted
-    // pointer-input coroutine, avoiding Kotlin's restricted-suspension diagnostics.
     LaunchedEffect(enabled, isBackspaceHeld) {
         if (!enabled || !isBackspaceHeld) return@LaunchedEffect
 
@@ -275,19 +274,18 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                     modifier = Modifier
                         .weight(1f)
                         .pointerInput(enabled) {
-                            awaitEachGesture {
-                                awaitFirstDown(requireUnconsumed = false)
-                                if (!enabled) return@awaitEachGesture
-
-                                sendNativeBackspace()
-                                isBackspaceHeld = true
-
-                                try {
-                                    waitForUpOrCancellation()
-                                } finally {
-                                    isBackspaceHeld = false
+                            detectTapGestures(
+                                onPress = {
+                                    if (!enabled) return@detectTapGestures
+                                    sendNativeBackspace()
+                                    isBackspaceHeld = true
+                                    try {
+                                        awaitRelease()
+                                    } finally {
+                                        isBackspaceHeld = false
+                                    }
                                 }
-                            }
+                            )
                         },
                     shape = CircleShape
                 ) {
