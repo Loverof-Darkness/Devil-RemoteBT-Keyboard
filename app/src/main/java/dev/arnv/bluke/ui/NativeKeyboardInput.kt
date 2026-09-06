@@ -2,6 +2,7 @@ package dev.arnv.bluke.ui
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -165,19 +167,6 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         onSend("\b")
     }
 
-    fun handleBackspacePress() {
-        sendNativeBackspace()
-    }
-
-    fun handleBackspaceGesture() {
-        if (!enabled) return
-
-        // The first Backspace is immediate. Holding the button then behaves like a
-        // physical keyboard key repeat: after a brief initial delay, additional HID
-        // Backspace presses are emitted until the finger is released.
-        androidx.compose.runtime.rememberCoroutineScope()
-    }
-
     fun sendAction() {
         when (mode) {
             NativeInputMode.BUFFER -> sendBufferedText()
@@ -280,24 +269,22 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                         .pointerInput(enabled) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
-
                                 sendNativeBackspace()
 
-                                var repeatJob: Job? = null
-                                try {
-                                    kotlinx.coroutines.coroutineScope {
-                                        repeatJob = launch {
-                                            delay(BACKSPACE_INITIAL_DELAY_MS)
-                                            while (true) {
-                                                sendNativeBackspace()
-                                                delay(BACKSPACE_REPEAT_INTERVAL_MS)
-                                            }
+                                coroutineScope {
+                                    val repeatJob: Job = launch {
+                                        delay(BACKSPACE_INITIAL_DELAY_MS)
+                                        while (true) {
+                                            sendNativeBackspace()
+                                            delay(BACKSPACE_REPEAT_INTERVAL_MS)
                                         }
-
-                                        awaitPointerRelease()
                                     }
-                                } finally {
-                                    repeatJob?.cancel()
+
+                                    try {
+                                        waitForUpOrCancellation()
+                                    } finally {
+                                        repeatJob.cancel()
+                                    }
                                 }
                             }
                         },
