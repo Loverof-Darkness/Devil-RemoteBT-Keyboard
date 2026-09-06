@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="Logo.svg" width="128" height="128" alt="Devil RemoteBT Keyboard Logo" />
+<img src="https://raw.githubusercontent.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/main/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" width="128" height="128" alt="Devil RemoteBT Keyboard Logo" />
 
 # Devil RemoteBT Keyboard
 
