@@ -4,7 +4,7 @@
 
 # Devil RemoteBT Keyboard
 
-A Bluetooth HID keyboard controller for Android, based on the open-source **Bluke** project by **Arnav Kumar (@arnav-kr)**.
+A Bluetooth HID keyboard/controller for Android, based on the open-source **Bluke** project by **Arnav Kumar (@arnav-kr)**.
 
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -16,21 +16,27 @@ A Bluetooth HID keyboard controller for Android, based on the open-source **Bluk
 
 ## About
 
-**Devil RemoteBT Keyboard** is a customized continuation of [Bluke](https://github.com/arnav-kr/Bluke), a native Android Bluetooth HID application that turns an Android device into a wireless keyboard/controller without requiring host-side companion software.
+**Devil RemoteBT Keyboard** is a customized, maintained derivative of [Bluke](https://github.com/arnav-kr/Bluke), a native Android Bluetooth HID application that turns an Android device into a wireless keyboard/controller without requiring host-side companion software.
 
-The project keeps the proven Bluetooth HID foundation and original application capabilities from Bluke, while adding a dedicated **native Android keyboard input experience** for people who want to type normally with their phone's system keyboard, including Gboard and other Android IMEs.
+The project retains the upstream Bluetooth HID foundation and original application capabilities while adding a dedicated **native Android keyboard input experience** for normal phone typing, including Gboard and other Android IMEs.
 
-The goal is simple: keep the reliability and device compatibility of native Bluetooth HID while making text entry faster, more natural, and easier to use on a phone.
+The goal is to keep the reliability and compatibility of native Bluetooth HID while making text entry faster, more natural, and easier to use on a phone.
+
+> **Modified version notice:** Devil RemoteBT Keyboard is a modified version of Bluke. Modifications are maintained in this repository and include the native system-keyboard input workflow, Live/Buffer text entry, messenger-style sending, Line Break/Shift+Enter handling, more reliable native text transmission, Hellfire theme work, application identity changes, and related usability fixes.
+>
+> **Modification date:** 2026-09-06
+>
+> **License:** This entire project is distributed under the **GNU Affero General Public License, version 3 (AGPL-3.0)**. See [LICENSE](LICENSE).
 
 ## Original Bluke Features
 
 The underlying Bluke functionality is retained, including:
 
-* **No host software required**: Uses Android's native Bluetooth HID profile to connect directly with Windows, macOS, Linux, ChromeOS, Android TV, and compatible game consoles.
-* **Mechanical switch sound synthesis**: Includes real-time switch acoustics such as Cherry MX Brown, Holy Panda, Alpaca, Kailh Box Navy, Buckling Spring, and Topre.
-* **Themes and case colors**: Includes the original built-in visual presets and selectable case colors.
-* **System integration**: Supports system haptics, OLED black mode, and Material You dynamic colors.
-* **Keyboard / controller functionality**: Preserves the original Bluke input architecture and HID behavior rather than replacing it with an unrelated implementation.
+* **No host software required:** Uses Android's native Bluetooth HID profile to connect directly with Windows, macOS, Linux, ChromeOS, Android TV, and compatible game consoles.
+* **Mechanical switch sound synthesis:** Includes real-time switch acoustics and the original keyboard sound assets used by Bluke.
+* **Themes and case colors:** Retains the original built-in visual presets and selectable case colors.
+* **System integration:** Supports system haptics, OLED black mode, and Material You dynamic colors.
+* **Keyboard / controller functionality:** Preserves the original Bluke input architecture and HID behavior rather than replacing it with an unrelated implementation.
 
 See the original project for the upstream implementation and complete history:
 
@@ -38,97 +44,61 @@ See the original project for the upstream implementation and complete history:
 
 ## What We Added / Changed
 
-### 1. Native Android system-keyboard input
+### Native Android system-keyboard input
 
-A dedicated text-entry field was added so users can type with the keyboard already installed on their Android phone instead of manually pressing individual on-screen HID keys.
+A dedicated text-entry field lets users type with the keyboard already installed on their Android phone instead of manually pressing individual on-screen HID keys.
 
-This works with Android's normal IME system, including **Gboard and other system keyboards**.
+This works with Android's normal IME system, including **Gboard and other system keyboards**. Typed characters are converted to Bluetooth HID keyboard input and sent to the connected device; no separate host application is required.
 
-**Benefits:**
+### Live input mode
 
-* Much faster text entry for messages, commands, searches, and long text.
-* Uses the familiar Android keyboard experience.
-* No separate host application is required; the typed characters are converted to Bluetooth HID keyboard input and sent to the connected device.
+**Live mode** sends newly typed text to the connected host as it is entered. End-of-text deletions are translated into HID Backspace input.
 
-### 2. Live input mode
+### Buffer input mode
 
-**Live mode** sends newly typed text to the connected host as it is entered. Deletions at the end of the text are also translated into HID Backspace input.
+**Buffer mode** lets users compose a complete message in the Android text field before sending it with the in-field Send button.
 
-**Benefits:**
+### Messenger-style Send button
 
-* Very low-friction typing for interactive use.
-* The computer/device receives the text while you type.
-* Useful when the remote keyboard is being used as a direct replacement for physical keyboard input.
-
-### 3. Buffer input mode
-
-**Buffer mode** lets you compose the complete message in the Android text field first, then send it with the in-field Send button.
-
-**Benefits:**
-
-* Prevents partially composed messages from being transmitted.
-* Makes longer messages easier to review before sending.
-* Gives users an experience closer to a chat application's message composer.
-
-### 4. Messenger-style Send button
-
-The text field now includes a **Send button inside the field on the right**, similar to modern messaging applications.
-
-Pressing Send behaves as the message submission action:
+The text field includes a **Send** button on the right, similar to a modern messaging composer.
 
 * **Live mode:** sends the Enter action to the host after the current text.
 * **Buffer mode:** sends the composed text followed by Enter.
-* After sending, the text field is **automatically cleared** so the previous message cannot be accidentally edited or confused with the next one.
+* After sending, the text field is **automatically cleared**.
 
-**Why this matters:**
+### Dedicated Line Break / Shift+Enter action
 
-The field behaves like a true message composer instead of leaving already-sent text on screen. This reduces accidental duplicate sends, makes the next message immediately obvious, and keeps the interface clean during repeated use.
+The previous bottom Enter action is now a **Line break (Shift+Enter)** control.
 
-### 5. Dedicated Line Break / Shift+Enter action
+* **Buffer mode:** inserts a newline without sending the message.
+* **Live mode:** sends the HID equivalent of **Shift+Enter**.
 
-The previous bottom Enter action was changed into a **Line break (Shift+Enter)** control.
+### Direct Backspace control
 
-* **Buffer mode:** inserts a newline into the message without sending it.
-* **Live mode:** sends the HID equivalent of **Shift+Enter**, allowing a new line without triggering normal Enter submission behavior.
+A dedicated Backspace control is available alongside the Line Break action. It can send Backspace directly to the host and supports press-and-hold repeat behavior without depending on the Android IME's deletion callback.
 
-**Benefits:**
+### Reliable native text transmission
 
-* Makes multi-line messages practical.
-* Separates **Send/Enter** from **Line break/Shift+Enter** so the two actions are not confused.
-* Matches the interaction pattern used by many modern messaging and text-entry interfaces.
+Native text sending serializes HID text transmission and uses short pacing delays between key press/release reports. This reduces the risk of repeated or apparently stuck characters on hosts that cannot process a burst of HID reports reliably.
 
-### 6. More reliable native text transmission
+### Hellfire visual theme
 
-Native text sending uses serialized HID text transmission with small pacing delays between key press/release reports.
+A dedicated **Hellfire** palette was added as the project's default visual direction, while the existing upstream palette choices remain available for compatibility. The Hellfire palette uses a red-accented dark/light color system and does not rely on device wallpaper colors while active.
 
-This was added to avoid sending a burst of HID reports so quickly that some host systems could interpret the sequence incorrectly, which can otherwise result in repeated or apparently stuck characters.
+### Application identity and attribution
 
-**Benefits:**
-
-* More dependable character delivery.
-* Lower risk of repeated/stuck characters during fast text entry.
-* Better behavior across hosts with different Bluetooth/HID processing speeds.
-
-### 7. Application identity
-
-The Android application identity was customized for this project as:
-
-**DevilRemoteKeyboard**
-
-This distinguishes the maintained application from the upstream Bluke app while clearly documenting that its core implementation originates from Bluke.
+The Android application identity and presentation are customized for **Devil RemoteBT Keyboard**. The project does not present itself as the original Bluke application; the upstream project and original author remain explicitly credited.
 
 ## Why These Changes Exist
 
-Bluke already provides the important part: a native Android Bluetooth HID foundation that can communicate directly with supported host devices. The additions in this project focus specifically on **text-entry usability**.
+Bluke provides the important native Android Bluetooth HID foundation. The additions in this project focus primarily on text-entry usability and a more polished standalone application experience.
 
-A phone is already equipped with a capable software keyboard, predictive text, multilingual input, punctuation, emoji, and other IME features. Providing a native text composer lets the user take advantage of that existing input stack while still sending the final keyboard actions over Bluetooth HID.
-
-The Live/Buffer split addresses two different workflows:
+The Live/Buffer split serves two workflows:
 
 * **Live** is optimized for direct, continuous keyboard replacement.
 * **Buffer** is optimized for composing and sending complete messages.
 
-The Send/Line Break separation then makes those workflows less error-prone, while automatic clearing prevents stale sent text from remaining in the composer.
+The Send/Line Break separation makes those workflows less error-prone, while automatic clearing prevents stale sent text from remaining in the composer.
 
 ## Credits & Attribution
 
@@ -149,11 +119,30 @@ Please give the original author credit for the foundational work and refer to th
 
 The original Bluke project credits **[kbsim](https://github.com/tplai/kbsim)** for inspiration for the web keyboard simulator UI and for the mechanical switch audio assets used by Bluke.
 
-## License
+## Legal Notice
 
-This project remains licensed under the **[AGPL-3.0](LICENSE)** in accordance with the upstream Bluke project.
+**Copyright and modifications:** Copyright in the original Bluke work remains with its respective copyright holders. Modifications and original additions in Devil RemoteBT Keyboard are maintained by Loverof-Darkness.
 
-Because this project is based on Bluke, please retain the applicable upstream license and attribution information when redistributing or modifying the project.
+**License:** Devil RemoteBT Keyboard is distributed under the **GNU Affero General Public License v3 (AGPL-3.0)**. The complete license text is included in [LICENSE](LICENSE).
+
+**No warranty:** The software is provided without warranty to the extent permitted by the AGPL-3.0.
+
+**Source:** The complete corresponding source for the distributed application is available in this public repository. Release pages provide the corresponding tagged source and the built APK for that release.
+
+## Release Downloads
+
+The canonical place for user-facing builds is the repository's **GitHub Releases** page:
+
+**https://github.com/Loverof-Darkness/Devil-RemoteBT-Keyboard/releases**
+
+Every tagged release is intended to publish:
+
+* the signed release APK produced by the release workflow;
+* a matching source archive for the exact release tag;
+* SHA-256 checksums for published release files;
+* generated GitHub release notes.
+
+This keeps the final APK and the corresponding source together in one place.
 
 ## Requirements
 
@@ -166,7 +155,8 @@ Because this project is based on Bluke, please retain the applicable upstream li
 
 * Android Studio Koala or newer.
 * Android SDK 36.
-* Gradle Wrapper included with the repository.
+* JDK 17.
+* Gradle Wrapper included in the repository.
 
 ### Build the debug APK
 
@@ -177,8 +167,29 @@ Because this project is based on Bluke, please retain the applicable upstream li
 ### Build the release APK
 
 ```bash
-./gradlew assembleRelease
+./gradlew clean lintDebug assembleRelease
 ```
+
+The release build is minified/shrunk using the project's existing R8 configuration.
+
+## Automated Build
+
+GitHub Actions builds the project on pushes to `main` and uploads the generated APKs as workflow artifacts. A successful build is required before treating a commit as a release candidate.
+
+The latest verified build before the current documentation hardening completed successfully on **2026-09-06** at commit `56294b164c27e83f6b94bbd4cdd8f4a95d4e3cf0`.
+
+That build produced the Android APK artifact and completed all build/upload steps successfully.
+
+## Creating a Release
+
+Create and push a version tag using the format `vMAJOR.MINOR.PATCH`:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The release workflow will then build the release APK, create the source archive and checksums, and publish everything to the GitHub Releases page for that tag.
 
 ## Upstream
 
