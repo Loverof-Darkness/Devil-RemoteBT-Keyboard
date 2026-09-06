@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.KeyboardReturn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -147,13 +148,19 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         }
     }
 
+    fun sendNativeBackspace() {
+        if (!enabled) return
+        // Direct physical HID Backspace. This does not depend on the Android IME
+        // producing a text-edit callback, so it works repeatedly even when the
+        // native composer is already empty.
+        onSend("\b")
+    }
+
     fun sendAction() {
         when (mode) {
             NativeInputMode.BUFFER -> sendBufferedText()
             NativeInputMode.LIVE -> {
                 if (enabled) {
-                    // Live typing is already transmitted. The in-field send action only
-                    // needs to emit Enter, then reset the local composer.
                     onSend("\n")
                     clearInput()
                     keyboardController?.hide()
@@ -239,20 +246,41 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                 }
             )
 
-            Button(
-                enabled = enabled,
-                onClick = { sendLineBreak() },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = CircleShape
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardReturn,
-                    contentDescription = null
-                )
-                Text(
-                    text = "Line break (Shift+Enter)",
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+                Button(
+                    enabled = enabled,
+                    onClick = { sendNativeBackspace() },
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Backspace,
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "Backspace",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+
+                Button(
+                    enabled = enabled,
+                    onClick = { sendLineBreak() },
+                    modifier = Modifier.weight(1f),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardReturn,
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "Line break (Shift+Enter)",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
         }
     }
