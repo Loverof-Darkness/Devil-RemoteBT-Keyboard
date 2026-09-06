@@ -1,8 +1,5 @@
 package dev.arnv.bluke.ui
 
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,10 +35,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private enum class NativeInputMode { LIVE, BUFFER }
 
@@ -75,6 +70,7 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
     var liveSourceText by rememberSaveable {
         mutableStateOf(if (mode == NativeInputMode.LIVE) LIVE_EDIT_ANCHOR else "")
     }
+    var isBackspaceHeld by remember { mutableStateOf(false) }
 
     fun liveVisibleValue(value: String): String = value.removeSuffix(LIVE_EDIT_ANCHOR)
 
@@ -180,6 +176,18 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
         }
     }
 
+    // Repeats are driven by a normal Compose coroutine rather than the restricted
+    // pointer-input coroutine, avoiding Kotlin's restricted-suspension diagnostics.
+    LaunchedEffect(enabled, isBackspaceHeld) {
+        if (!enabled || !isBackspaceHeld) return@LaunchedEffect
+
+        delay(BACKSPACE_INITIAL_DELAY_MS)
+        while (isBackspaceHeld) {
+            sendNativeBackspace()
+            delay(BACKSPACE_REPEAT_INTERVAL_MS)
+        }
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -269,22 +277,15 @@ fun NativeKeyboardInput(enabled: Boolean, onSend: (String) -> Int) {
                         .pointerInput(enabled) {
                             awaitEachGesture {
                                 awaitFirstDown(requireUnconsumed = false)
+                                if (!enabled) return@awaitEachGesture
+
                                 sendNativeBackspace()
+                                isBackspaceHeld = true
 
-                                coroutineScope {
-                                    val repeatJob: Job = launch {
-                                        delay(BACKSPACE_INITIAL_DELAY_MS)
-                                        while (true) {
-                                            sendNativeBackspace()
-                                            delay(BACKSPACE_REPEAT_INTERVAL_MS)
-                                        }
-                                    }
-
-                                    try {
-                                        waitForUpOrCancellation()
-                                    } finally {
-                                        repeatJob.cancel()
-                                    }
+                                try {
+                                    waitForUpOrCancellation()
+                                } finally {
+                                    isBackspaceHeld = false
                                 }
                             }
                         },
