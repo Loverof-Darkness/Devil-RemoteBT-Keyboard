@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a bug to help improve Bluke
+about: Report a bug to help improve Devil RemoteBT Keyboard
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -12,8 +12,8 @@ A clear and concise description of the issue.
 
 **To Reproduce**
 Steps to reproduce the behavior:
-1. Open the Bluke application on your Android device.
-2. Perform action '...' (e.g., tap scan, attempt connection to device 'x', launch keyboard).
+1. Open the Devil RemoteBT Keyboard application on your Android device.
+2. Perform the action that triggers the problem (for example, scan, connect to a device, open the keyboard, or use native text input).
 3. Observe the unexpected behavior.
 
 **Expected behavior**
@@ -30,7 +30,7 @@ A clear description of what you expected to happen.
 
 **Connection & Pairing Details**
 - Was the host device previously paired? [Yes/No]
-- At what stage did the error occur? (e.g., Bluetooth HID registration, initial pairing handshake, keyboard view offline, keystroke transmission)
+- At what stage did the error occur? (e.g., Bluetooth HID registration, initial pairing handshake, keyboard view offline, keystroke transmission, native text input)
 
 **Screenshots / Screen Recordings**
 If applicable, add screenshots or videos showing the app state and device UI.
