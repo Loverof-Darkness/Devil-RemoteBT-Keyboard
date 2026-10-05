@@ -56,7 +56,14 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        if (permissions.all { checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+        val permissionsGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.all { checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+        } else {
+            checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsGranted) {
             startBluetoothHidService()
             btManager.checkBluetoothCapabilities()
         } else {
