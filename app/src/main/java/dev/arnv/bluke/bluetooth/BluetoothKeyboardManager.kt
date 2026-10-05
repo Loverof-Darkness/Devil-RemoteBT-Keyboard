@@ -408,6 +408,7 @@ class BluetoothKeyboardManager(private val context: Context) {
             }
         }
 
+        registerBondReceiver()
         updateBondedDevices()
         // Initialize HID Device Profile safely
         val hid = hidDeviceProfile
