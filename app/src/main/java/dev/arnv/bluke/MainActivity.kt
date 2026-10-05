@@ -1,5 +1,6 @@
 package dev.arnv.bluke
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,53 +8,46 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import dev.arnv.bluke.bluetooth.BluetoothKeyboardManager
+import dev.arnv.bluke.bluetooth.BluetoothHidService
 import dev.arnv.bluke.sound.KeyboardSoundSynthesizer
 import dev.arnv.bluke.ui.theme.MyApplicationTheme
 import dev.arnv.bluke.ui.HomeScreen
 
 class MainActivity : ComponentActivity() {
-    companion object {
-        @android.annotation.SuppressLint("StaticFieldLeak")
-        private var btManagerInstance: BluetoothKeyboardManager? = null
-    }
-
     private lateinit var btManager: BluetoothKeyboardManager
     private lateinit var soundSynth: KeyboardSoundSynthesizer
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
-        // Notify Bluetooth service to re-check status after user interaction
-        btManager.checkBluetoothCapabilities()
+        if (::btManager.isInitialized) {
+            btManager.checkBluetoothCapabilities()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val sharedPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         if (!sharedPrefs.getBoolean("has_seen_onboarding", false)) {
-            startActivity(android.content.Intent(this, OnboardingActivity::class.java))
+            startActivity(Intent(this, OnboardingActivity::class.java))
             finish()
             return
         }
 
-        // Initialize or reuse services safely against missing HID framework classes
-        dev.arnv.bluke.utils.DeveloperLogManager.init(applicationContext)
-        
-        if (btManagerInstance == null) {
-            try {
-                btManagerInstance = BluetoothKeyboardManager(applicationContext)
-            } catch (e: Throwable) {
-                android.util.Log.e("MainActivity", "Failed to initialize BluetoothKeyboardManager", e)
-            }
-        }
-        if (btManagerInstance != null) {
-            btManager = btManagerInstance!!
-        }
-
+        btManager = (application as DevilApplication).bluetoothKeyboardManager
         soundSynth = KeyboardSoundSynthesizer(applicationContext)
 
-        // Request Bluetooth and Location permissions dynamically
+        // The HID bridge is owned by BluetoothHidService, not by this Activity.
+        // Starting the service here keeps the bridge alive while the UI is minimized,
+        // recreated, or temporarily removed from the foreground.
+        val serviceIntent = Intent(this, BluetoothHidService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(
                 android.Manifest.permission.BLUETOOTH_CONNECT,
@@ -84,20 +78,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (::btManager.isInitialized) {
+            // Sync UI state only. This does not recreate or close the HID bridge.
             btManager.checkBluetoothCapabilities()
         }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        // Activity destruction is no longer the HID lifecycle boundary.
+        // The service owns the bridge and releases it when the app task/service closes.
         if (::soundSynth.isInitialized) {
             soundSynth.release()
         }
-        if (isFinishing) {
-            if (::btManager.isInitialized) {
-                btManager.close()
-                btManagerInstance = null
-            }
-        }
+        super.onDestroy()
     }
 }
