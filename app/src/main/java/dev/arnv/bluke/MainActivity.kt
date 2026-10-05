@@ -19,9 +19,12 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ ->
+    ) { result ->
         if (::btManager.isInitialized) {
             btManager.checkBluetoothCapabilities()
+        }
+        if (hasRequiredBluetoothPermissions(result)) {
+            startBluetoothHidService()
         }
     }
 
@@ -38,31 +41,12 @@ class MainActivity : ComponentActivity() {
         btManager = (application as DevilApplication).bluetoothKeyboardManager
         soundSynth = KeyboardSoundSynthesizer(applicationContext)
 
-        // The HID bridge is owned by BluetoothHidService, not by this Activity.
-        // Starting the service here keeps the bridge alive while the UI is minimized,
-        // recreated, or temporarily removed from the foreground.
-        val serviceIntent = Intent(this, BluetoothHidService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent)
+        if (permissions.all { checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED }) {
+            startBluetoothHidService()
+            btManager.checkBluetoothCapabilities()
         } else {
-            startService(serviceIntent)
+            permissionLauncher.launch(permissions)
         }
-
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(
-                android.Manifest.permission.BLUETOOTH_CONNECT,
-                android.Manifest.permission.BLUETOOTH_ADVERTISE,
-                android.Manifest.permission.BLUETOOTH_SCAN,
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        } else {
-            arrayOf(
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        }
-        permissionLauncher.launch(permissions)
 
         enableEdgeToEdge()
         setContent {
@@ -72,6 +56,25 @@ class MainActivity : ComponentActivity() {
                     soundSynth = soundSynth
                 )
             }
+        }
+    }
+
+    private fun hasRequiredBluetoothPermissions(result: Map<String, Boolean>): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return result[android.Manifest.permission.BLUETOOTH_CONNECT] == true &&
+                result[android.Manifest.permission.BLUETOOTH_ADVERTISE] == true &&
+                result[android.Manifest.permission.BLUETOOTH_SCAN] == true
+        }
+        return result[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+
+    private fun startBluetoothHidService() {
+        val serviceIntent = Intent(this, BluetoothHidService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
         }
     }
 
